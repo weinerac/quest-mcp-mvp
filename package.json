@@ -4,7 +4,7 @@
   "description": "Quest Apartment Hotels MCP Server — Australia POC",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "dev": "vercel dev"
   },
   "dependencies": {
