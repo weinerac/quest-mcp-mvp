@@ -375,10 +375,10 @@ export function App() {
           </section>
         ) : null}
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_360px]">
-          <div className="grid gap-3">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-3 md:grid-cols-2">
             {properties.length === 0 ? (
-              <div className="rounded-2xl border border-subtle bg-surface p-8 text-center text-sm text-secondary shadow-sm">
+              <div className="rounded-2xl border border-subtle bg-surface p-8 text-center text-sm text-secondary shadow-sm md:col-span-2">
                 Use <strong>quest_search_properties</strong> or <strong>quest_search_availability</strong> to render results here.
               </div>
             ) : (
@@ -393,7 +393,7 @@ export function App() {
                     key={property.id}
                     type="button"
                     onClick={() => setSelectedId(property.id)}
-                    className={`w-full rounded-2xl border bg-surface p-4 text-left shadow-sm transition ${
+                    className={`h-full w-full rounded-2xl border bg-surface p-4 text-left shadow-sm transition ${
                       active ? "border-primary ring-1 ring-primary/20" : "border-default hover:border-secondary"
                     }`}
                   >

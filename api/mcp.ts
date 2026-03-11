@@ -212,6 +212,45 @@ function generateConfirmationNumber(): string {
 // PROPERTY SEARCH HELPER
 // ============================================================
 
+type Landmark = {
+  aliases: string[];
+  coordinates: { lat: number; lng: number };
+  maxDistanceKm: number;
+};
+
+const LANDMARKS: Landmark[] = [
+  {
+    aliases: ["mcg", "melbourne cricket ground"],
+    coordinates: { lat: -37.8199, lng: 144.9834 },
+    maxDistanceKm: 5,
+  },
+];
+
+function calculateDistanceKm(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): number {
+  const earthRadiusKm = 6371;
+  const dLat = ((to.lat - from.lat) * Math.PI) / 180;
+  const dLng = ((to.lng - from.lng) * Math.PI) / 180;
+  const fromLat = (from.lat * Math.PI) / 180;
+  const toLat = (to.lat * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(fromLat) * Math.cos(toLat) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  return 2 * earthRadiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getLandmarkMatch(location: string): Landmark | null {
+  const normalized = location.toLowerCase().trim();
+  return LANDMARKS.find((landmark) =>
+    landmark.aliases.some((alias) => normalized.includes(alias))
+  ) ?? null;
+}
+
 function findProperties(opts: {
   location?: string;
   state?: string;
@@ -224,6 +263,7 @@ function findProperties(opts: {
 
   if (opts.location) {
     const loc = opts.location.toLowerCase().trim();
+    const landmark = getLandmarkMatch(loc);
     const STATE_MAP: Record<string, string> = {
       "new south wales": "NSW", "victoria": "VIC", "queensland": "QLD",
       "western australia": "WA", "south australia": "SA",
@@ -231,21 +271,32 @@ function findProperties(opts: {
     };
     const mappedState = STATE_MAP[loc];
 
-    results = results.filter(p =>
-      p.name.toLowerCase().includes(loc) ||
-      p.suburb.toLowerCase().includes(loc) ||
-      p.city.toLowerCase().includes(loc) ||
-      p.postcode === loc ||
-      p.state.toLowerCase() === loc ||
-      (mappedState && p.state === mappedState) ||
-      // handle common metro groupings
-      (loc === "sydney" && p.city === "Sydney") ||
-      (loc === "melbourne" && p.city === "Melbourne") ||
-      (loc === "brisbane" && p.city === "Brisbane") ||
-      (loc === "perth" && p.city === "Perth") ||
-      (loc === "canberra" && p.city === "Canberra") ||
-      (loc === "adelaide" && p.city === "Adelaide")
-    );
+    if (landmark) {
+      results = results
+        .map((property) => ({
+          property,
+          distanceKm: calculateDistanceKm(landmark.coordinates, property.coordinates),
+        }))
+        .filter(({ distanceKm }) => distanceKm <= landmark.maxDistanceKm)
+        .sort((a, b) => a.distanceKm - b.distanceKm)
+        .map(({ property }) => property);
+    } else {
+      results = results.filter(p =>
+        p.name.toLowerCase().includes(loc) ||
+        p.suburb.toLowerCase().includes(loc) ||
+        p.city.toLowerCase().includes(loc) ||
+        p.postcode === loc ||
+        p.state.toLowerCase() === loc ||
+        (mappedState && p.state === mappedState) ||
+        // handle common metro groupings
+        (loc === "sydney" && p.city === "Sydney") ||
+        (loc === "melbourne" && p.city === "Melbourne") ||
+        (loc === "brisbane" && p.city === "Brisbane") ||
+        (loc === "perth" && p.city === "Perth") ||
+        (loc === "canberra" && p.city === "Canberra") ||
+        (loc === "adelaide" && p.city === "Adelaide")
+      );
+    }
   }
 
   if (opts.state) {
