@@ -10,8 +10,14 @@ const outDir = await mkdtemp(path.join(tmpdir(), "quest-widget-"));
 
 function inlineAssets(html, css, js) {
   return html
-    .replace(/<script type="module" crossorigin src="[^"]+"><\/script>/, `<script type="module">\n${js}\n</script>`)
-    .replace(/<link rel="stylesheet" crossorigin href="[^"]+">/, `<style>\n${css}\n</style>`);
+    .replace(
+      /<script type="module" crossorigin src="[^"]+"><\/script>/,
+      () => `<script type="module">\n${js}\n</script>`
+    )
+    .replace(
+      /<link rel="stylesheet" crossorigin href="[^"]+">/,
+      () => `<style>\n${css}\n</style>`
+    );
 }
 
 try {
