@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@import "@openai/apps-sdk-ui/css";
+@source "../src/**/*.{ts,tsx}";
+@source "../../node_modules/@openai/apps-sdk-ui";
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+.quest-shell {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.quest-scroll {
+  scrollbar-width: thin;
+}

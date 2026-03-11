@@ -20,6 +20,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
@@ -265,26 +266,37 @@ function findProperties(opts: {
 function createServer(): McpServer {
   const server = new McpServer({ name: "quest-mcp-server", version: "1.0.0" });
 
-  server.registerResource(
+  registerAppResource(
+    server,
     "quest-search-results",
     SEARCH_RESULTS_WIDGET_URI,
     {
       title: "Quest Search Results",
       description: "Apps SDK widget for browsing Quest search and availability results inside ChatGPT.",
-      mimeType: "text/html+skybridge",
+      mimeType: RESOURCE_MIME_TYPE,
+      _meta: {
+        ui: {
+          prefersBorder: false,
+          csp: {
+            connectDomains: [],
+            resourceDomains: [],
+          },
+        },
+      },
     },
     async () => ({
       contents: [
         {
           uri: SEARCH_RESULTS_WIDGET_URI,
-          mimeType: "text/html+skybridge",
+          mimeType: RESOURCE_MIME_TYPE,
           text: readFileSync(SEARCH_RESULTS_WIDGET_PATH, "utf8"),
           _meta: {
-            "openai/widgetDescription": "Visual browser for Quest property and availability results.",
-            "openai/widgetPrefersBorder": true,
-            "openai/widgetCSP": {
-              connect_domains: [],
-              resource_domains: [],
+            ui: {
+              prefersBorder: false,
+              csp: {
+                connectDomains: [],
+                resourceDomains: [],
+              },
             },
           },
         },
@@ -293,7 +305,8 @@ function createServer(): McpServer {
   );
 
   // ── Tool 1: quest_search_properties ──────────────────────
-  server.registerTool(
+  registerAppTool(
+    server,
     "quest_search_properties",
     {
       title: "Search Quest Properties",
@@ -316,7 +329,7 @@ Examples:
   - "Quest hotels in Brisbane" → location="Brisbane"
   - "Quest with a pool in Victoria" → state="VIC", has_pool=true
   - "Quest near Sydney CBD with gym" → location="Sydney", has_gym=true`,
-      inputSchema: z.object({
+      inputSchema: {
         location: z.string().optional().describe("City, suburb, or state name/abbreviation"),
         state: z.string().optional().describe("State abbreviation: NSW, VIC, QLD, WA, SA, ACT, NT"),
         has_gym: z.boolean().optional().describe("Filter to properties with a gym"),
@@ -324,9 +337,12 @@ Examples:
         has_parking: z.boolean().optional().describe("Filter to properties with on-site parking"),
         has_conference_room: z.boolean().optional().describe("Filter to properties with conference facilities"),
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
-      }),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: {
+        ui: {
+          resourceUri: SEARCH_RESULTS_WIDGET_URI,
+        },
         "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
         "openai/toolInvocation/invoking": "Searching Quest properties",
         "openai/toolInvocation/invoked": "Quest properties ready",
@@ -599,7 +615,8 @@ Rate plans:
   );
 
   // ── Tool 5: quest_search_availability ────────────────────
-  server.registerTool(
+  registerAppTool(
+    server,
     "quest_search_availability",
     {
       title: "Search Quest Availability",
@@ -622,7 +639,7 @@ Returns available properties sorted by price, with best rate per property/room c
 Examples:
   - "2BR in Melbourne next week under $300/night" → location="Melbourne", room_type="2-Bedroom", max_rate=300
   - "Family accommodation Brisbane with pool" → location="Brisbane", has_pool=true, guests=4`,
-      inputSchema: z.object({
+      inputSchema: {
         location: z.string().optional().describe("City, suburb, or region"),
         state: z.string().optional().describe("State abbreviation: NSW, VIC, QLD, WA, SA, ACT, NT"),
         check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Check-in date YYYY-MM-DD"),
@@ -633,9 +650,12 @@ Examples:
         has_gym: z.boolean().optional().describe("Only properties with gym"),
         has_pool: z.boolean().optional().describe("Only properties with pool"),
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
-      }),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       _meta: {
+        ui: {
+          resourceUri: SEARCH_RESULTS_WIDGET_URI,
+        },
         "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
         "openai/toolInvocation/invoking": "Searching Quest availability",
         "openai/toolInvocation/invoked": "Quest availability ready",
