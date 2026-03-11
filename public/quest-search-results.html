@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quest Search Results</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f3efe7;
+        --surface: #fffdf9;
+        --surface-strong: #ffffff;
+        --text: #1d2d35;
+        --muted: #61707a;
+        --border: rgba(29, 45, 53, 0.12);
+        --accent: #115b52;
+        --accent-strong: #0b453f;
+        --warm: #b48449;
+        --shadow: 0 18px 40px rgba(29, 45, 53, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top right, rgba(180, 132, 73, 0.18), transparent 28%),
+          linear-gradient(180deg, #f7f2ea 0%, #f0ebe3 100%);
+        color: var(--text);
+        font: 15px/1.45 Georgia, "Times New Roman", serif;
+      }
+
+      .shell {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .hero {
+        padding: 22px 22px 18px;
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(17, 91, 82, 0.96), rgba(11, 69, 63, 0.94));
+        box-shadow: var(--shadow);
+        color: #f8f3ea;
+      }
+
+      .eyebrow {
+        margin: 0 0 6px;
+        font: 600 11px/1.2 Arial, sans-serif;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        opacity: 0.82;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 34px;
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      .hero p {
+        margin: 10px 0 0;
+        max-width: 760px;
+        color: rgba(248, 243, 234, 0.88);
+        font-family: Arial, sans-serif;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .panel {
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: rgba(255, 253, 249, 0.92);
+        box-shadow: var(--shadow);
+      }
+
+      .summary {
+        padding: 18px;
+      }
+
+      .label {
+        margin: 0 0 6px;
+        font: 600 11px/1.2 Arial, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: var(--muted);
+      }
+
+      .value {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .meta {
+        margin-top: 14px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip {
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 91, 82, 0.15);
+        background: rgba(17, 91, 82, 0.08);
+        color: var(--accent);
+        font: 600 12px/1 Arial, sans-serif;
+      }
+
+      .status {
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(180, 132, 73, 0.08);
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+      }
+
+      .results {
+        padding: 14px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .empty {
+        padding: 42px 24px;
+        text-align: center;
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+      }
+
+      .card {
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: var(--surface-strong);
+      }
+
+      .card-head {
+        padding: 16px 18px 14px;
+        background:
+          linear-gradient(135deg, rgba(180, 132, 73, 0.2), rgba(180, 132, 73, 0.04)),
+          linear-gradient(180deg, rgba(17, 91, 82, 0.03), transparent);
+        border-bottom: 1px solid var(--border);
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.05;
+      }
+
+      .subtle {
+        margin-top: 7px;
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+      }
+
+      .body {
+        padding: 16px 18px 18px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .rooms {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .room {
+        min-width: 130px;
+        padding: 10px 12px;
+        border-radius: 16px;
+        background: #f7f2ea;
+        border: 1px solid rgba(180, 132, 73, 0.18);
+        font-family: Arial, sans-serif;
+      }
+
+      .room strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--accent-strong);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font: 700 12px/1 Arial, sans-serif;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: var(--accent);
+        color: #fff8ef;
+      }
+
+      .secondary {
+        background: rgba(17, 91, 82, 0.08);
+        color: var(--accent);
+      }
+
+      .details {
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 18px;
+        background: #f8f5ef;
+        border: 1px solid rgba(29, 45, 53, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="hero">
+        <p class="eyebrow">Quest Apps SDK</p>
+        <h1 id="hero-title">Quest search results</h1>
+        <p id="hero-copy">Run a search tool in ChatGPT and results will render here as an Apps SDK component.</p>
+      </section>
+
+      <section class="layout">
+        <aside class="panel summary">
+          <p class="label">Result count</p>
+          <p class="value" id="summary-total">0</p>
+          <div class="meta">
+            <div>
+              <p class="label">Context</p>
+              <div class="chips" id="context-chips"></div>
+            </div>
+            <div class="status" id="status">Waiting for tool output.</div>
+          </div>
+        </aside>
+        <main class="panel results" id="results">
+          <div class="empty">Use <strong>quest_search_properties</strong> or <strong>quest_search_availability</strong> to populate this widget.</div>
+        </main>
+      </section>
+    </div>
+
+    <script type="module">
+      const state = {
+        input: null,
+        result: null,
+        details: new Map(),
+      };
+
+      const heroTitle = document.getElementById("hero-title");
+      const heroCopy = document.getElementById("hero-copy");
+      const totalEl = document.getElementById("summary-total");
+      const chipsEl = document.getElementById("context-chips");
+      const statusEl = document.getElementById("status");
+      const resultsEl = document.getElementById("results");
+
+      function rpcRequest(method, params) {
+        const id = "rpc_" + Math.random().toString(36).slice(2);
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            window.removeEventListener("message", onMessage);
+            reject(new Error("Timed out waiting for " + method));
+          }, 15000);
+
+          function onMessage(event) {
+            if (event.source !== window.parent) return;
+            const message = event.data;
+            if (!message || message.jsonrpc !== "2.0" || message.id !== id) return;
+            clearTimeout(timeout);
+            window.removeEventListener("message", onMessage);
+            if (message.error) {
+              reject(new Error(message.error.message || "RPC request failed"));
+              return;
+            }
+            resolve(message.result);
+          }
+
+          window.addEventListener("message", onMessage, { passive: true });
+          window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+        });
+      }
+
+      function setContext() {
+        const input = state.input || {};
+        const chips = [
+          input.location ? "Location: " + input.location : null,
+          input.state ? "State: " + input.state : null,
+          input.check_in ? "Check-in: " + input.check_in : null,
+          input.check_out ? "Check-out: " + input.check_out : null,
+          input.room_type ? "Room: " + input.room_type : null,
+          input.has_gym ? "Gym" : null,
+          input.has_pool ? "Pool" : null,
+          input.has_parking ? "Parking" : null,
+          input.max_rate ? "Max: AUD $" + input.max_rate : null,
+        ].filter(Boolean);
+
+        chipsEl.innerHTML = chips.length
+          ? chips.map((chip) => '<span class="chip">' + chip + "</span>").join("")
+          : '<span class="chip">No filters</span>';
+      }
+
+      function amenityChips(item) {
+        const chips = [];
+        if (item.hasGym) chips.push("Gym");
+        if (item.hasPool) chips.push("Pool");
+        if (item.hasParking) chips.push("Parking");
+        if (item.hasConferenceRoom) chips.push("Conference");
+        return chips;
+      }
+
+      function detailsMarkup(propertyId) {
+        const details = state.details.get(propertyId);
+        if (!details) return "";
+        const rooms = (details.roomTypes || []).map((room) =>
+          '<div class="room"><strong>' + room.type + '</strong><span>AUD $' + room.baseRatePerNight + '/night · ' + room.count + " rooms</span></div>"
+        ).join("");
+        return (
+          '<div class="details"><strong>Property details</strong><div class="subtle">' + (details.description || "") +
+          '</div><div class="rooms" style="margin-top:12px;">' + rooms + "</div></div>"
+        );
+      }
+
+      function renderResults() {
+        const payload = state.result;
+        const propertyResults = Array.isArray(payload && payload.properties) ? payload.properties : null;
+        const availabilityResults = Array.isArray(payload && payload.results) ? payload.results : null;
+        const items = propertyResults || availabilityResults || [];
+
+        totalEl.textContent = String(payload && payload.total ? payload.total : items.length);
+
+        if (!items.length) {
+          resultsEl.innerHTML = '<div class="empty">No matching Quest results for the current tool call.</div>';
+          return;
+        }
+
+        const isAvailability = Boolean(availabilityResults);
+        heroTitle.textContent = isAvailability ? "Quest availability matches" : "Quest property matches";
+        heroCopy.textContent = isAvailability
+          ? "Available stays are sorted by best nightly rate from the current search."
+          : "Property discovery results from the latest Quest search.";
+
+        resultsEl.innerHTML = items.map((item) => {
+          const propertyId = item.id || item.propertyId;
+          const name = item.name || item.propertyName;
+          const rooms = item.roomTypes
+            ? item.roomTypes.map((room) =>
+                '<div class="room"><strong>' + room.type + '</strong><span>' + room.fromRate + "</span></div>"
+              ).join("")
+            : '<div class="room"><strong>' + item.roomType + '</strong><span>AUD $' + item.bestRate.nightlyRate + '/night</span></div>';
+          const chips = amenityChips(item).map((chip) => '<span class="chip">' + chip + "</span>").join("");
+          const summary = item.shortDescription || (item.roomsLeft
+            ? item.roomsLeft + " rooms left · " + item.bestRate.planName + " · AUD $" + item.bestRate.totalCost + " total"
+            : "");
+
+          return [
+            '<article class="card">',
+            '<div class="card-head">',
+            "<h2>" + name + "</h2>",
+            '<div class="subtle">' + item.address + "</div>",
+            '<div class="subtle">' + "★".repeat(Math.round(item.starRating || 0)) + (summary ? " · " + summary : "") + "</div>",
+            "</div>",
+            '<div class="body">',
+            chips ? '<div class="chips">' + chips + "</div>" : "",
+            '<div class="rooms" style="margin-top:12px;">' + rooms + "</div>",
+            '<div class="actions">',
+            '<button class="primary" data-action="details" data-property-id="' + propertyId + '">Load details</button>',
+            '<button class="secondary" data-action="message" data-property-id="' + propertyId + '" data-property-name="' + name + '">Ask ChatGPT</button>',
+            "</div>",
+            detailsMarkup(propertyId),
+            "</div>",
+            "</article>",
+          ].join("");
+        }).join("");
+      }
+
+      async function loadDetails(propertyId, button) {
+        if (state.details.has(propertyId)) {
+          renderResults();
+          return;
+        }
+
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "Loading";
+
+        try {
+          const result = await rpcRequest("tools/call", {
+            name: "quest_get_property_details",
+            arguments: {
+              property_id: propertyId,
+              response_format: "json",
+            },
+          });
+          if (result && result.structuredContent) {
+            state.details.set(propertyId, result.structuredContent);
+            renderResults();
+            statusEl.textContent = "Loaded details for " + propertyId + ".";
+          }
+        } catch (error) {
+          statusEl.textContent = error instanceof Error ? error.message : "Failed to load details.";
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      }
+
+      async function sendFollowUp(propertyId, propertyName) {
+        const text = "Compare " + propertyName + " (" + propertyId + ") with the other Quest options and recommend the best choice.";
+        try {
+          await rpcRequest("ui/message", {
+            role: "user",
+            content: [{ type: "text", text }],
+          });
+          statusEl.textContent = "Sent follow-up prompt to ChatGPT.";
+        } catch (error) {
+          statusEl.textContent = error instanceof Error ? error.message : "Unable to send follow-up.";
+        }
+      }
+
+      resultsEl.addEventListener("click", async (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const action = target.dataset.action;
+        const propertyId = target.dataset.propertyId;
+        if (!action || !propertyId) return;
+
+        if (action === "details") {
+          await loadDetails(propertyId, target);
+        }
+
+        if (action === "message") {
+          await sendFollowUp(propertyId, target.dataset.propertyName || propertyId);
+        }
+      });
+
+      window.addEventListener("message", (event) => {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!message || message.jsonrpc !== "2.0") return;
+
+        if (message.method === "ui/notifications/tool-input") {
+          state.input = message.params || null;
+          setContext();
+          statusEl.textContent = "Tool input received.";
+        }
+
+        if (message.method === "ui/notifications/tool-result") {
+          state.result = (message.params && message.params.structuredContent) || null;
+          setContext();
+          renderResults();
+          statusEl.textContent = "Tool result rendered.";
+        }
+      }, { passive: true });
+    </script>
+  </body>
+</html>

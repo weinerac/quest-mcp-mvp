@@ -18,10 +18,15 @@
  * Bookings are in-memory (reset on cold start — POC only).
  */
 
+import { readFileSync } from "node:fs";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { PROPERTIES, type Property, type RoomType } from "./property-data.js";
+
+const SEARCH_RESULTS_WIDGET_URI = "ui://quest/widgets/search-results.html";
+const SEARCH_RESULTS_WIDGET_PATH = new URL("../public/quest-search-results.html", import.meta.url);
 
 // ============================================================
 // TYPES
@@ -260,6 +265,33 @@ function findProperties(opts: {
 function createServer(): McpServer {
   const server = new McpServer({ name: "quest-mcp-server", version: "1.0.0" });
 
+  server.registerResource(
+    "quest-search-results",
+    SEARCH_RESULTS_WIDGET_URI,
+    {
+      title: "Quest Search Results",
+      description: "Apps SDK widget for browsing Quest search and availability results inside ChatGPT.",
+      mimeType: "text/html+skybridge",
+    },
+    async () => ({
+      contents: [
+        {
+          uri: SEARCH_RESULTS_WIDGET_URI,
+          mimeType: "text/html+skybridge",
+          text: readFileSync(SEARCH_RESULTS_WIDGET_PATH, "utf8"),
+          _meta: {
+            "openai/widgetDescription": "Visual browser for Quest property and availability results.",
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetCSP": {
+              connect_domains: [],
+              resource_domains: [],
+            },
+          },
+        },
+      ],
+    })
+  );
+
   // ── Tool 1: quest_search_properties ──────────────────────
   server.registerTool(
     "quest_search_properties",
@@ -294,6 +326,11 @@ Examples:
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Searching Quest properties",
+        "openai/toolInvocation/invoked": "Quest properties ready",
+      },
     },
     async (params) => {
       const results = findProperties({
@@ -598,6 +635,11 @@ Examples:
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Searching Quest availability",
+        "openai/toolInvocation/invoked": "Quest availability ready",
+      },
     },
     async (params) => {
       const nights = calculateNights(params.check_in, params.check_out);
