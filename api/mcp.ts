@@ -86,7 +86,7 @@ interface Booking {
   createdAt: string;
 }
 
-const SEARCH_WIDGET_URI = "ui://quest/widgets/property-search";
+const SEARCH_WIDGET_URI = "ui://quest/widgets/property-search-v1.html";
 
 const SEARCH_WIDGET_HTML = String.raw`<!doctype html>
 <html lang="en">
@@ -3478,14 +3478,23 @@ function createServer(): McpServer {
     {
       title: "Quest Property Search Widget",
       description: "Interactive UI for exploring Quest property search results inside ChatGPT.",
-      mimeType: "text/html",
+      mimeType: "text/html;profile=mcp-app",
     },
     async () => ({
       contents: [
         {
           uri: SEARCH_WIDGET_URI,
-          mimeType: "text/html",
+          mimeType: "text/html;profile=mcp-app",
           text: SEARCH_WIDGET_HTML,
+          _meta: {
+            ui: {
+              prefersBorder: true,
+              csp: {
+                connectDomains: [],
+                resourceDomains: [],
+              },
+            },
+          },
         },
       ],
     })
@@ -3529,6 +3538,9 @@ Examples:
         ui: {
           resourceUri: SEARCH_WIDGET_URI,
         },
+        "openai/outputTemplate": SEARCH_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Searching Quest properties…",
+        "openai/toolInvocation/invoked": "Quest properties ready.",
       },
     },
     async (params) => {
