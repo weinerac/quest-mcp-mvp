@@ -159,7 +159,7 @@ function normalizeProperties(payload: SearchResultPayload | null): NormalizedPro
 }
 
 function getDestinationLabel(input: SearchInput | null) {
-  return input?.location ?? input?.state ?? "Australia";
+  return input?.location ?? input?.state ?? "";
 }
 
 function getStayLabel(input: SearchInput | null, checkIn: string, checkOut: string) {
@@ -320,6 +320,7 @@ export function App() {
     lastInput?.has_gym ? "Gym" : null,
     lastInput?.has_pool ? "Pool" : null,
   ].filter(Boolean) as string[];
+  const hasSummaryContext = Boolean(destinationLabel || lastInput?.check_in || lastInput?.check_out || filters.length > 0);
 
   if (error) {
     return (
@@ -334,39 +335,45 @@ export function App() {
   return (
     <div className="quest-shell bg-transparent p-3 text-primary sm:p-4">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <section className="rounded-2xl border border-default bg-surface p-4 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <Badge color="secondary" pill>
-                  Quest
-                </Badge>
-                <Badge color="info" variant="soft" pill>
-                  {isConnected ? "Connected" : "Connecting"}
-                </Badge>
+        {hasSummaryContext ? (
+          <section className="rounded-2xl border border-default bg-surface p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge color="secondary" pill>
+                    Quest
+                  </Badge>
+                  <Badge color="info" variant="soft" pill>
+                    {isConnected ? "Connected" : "Connecting"}
+                  </Badge>
+                </div>
+                <div>
+                  {destinationLabel ? <h1 className="heading-lg">{destinationLabel}</h1> : null}
+                  {(lastInput?.check_in || lastInput?.check_out) ? (
+                    <p className="mt-1 text-sm text-secondary">{stayLabel}</p>
+                  ) : null}
+                </div>
               </div>
-              <div>
-                <h1 className="heading-lg">{destinationLabel}</h1>
-                <p className="mt-1 text-sm text-secondary">{stayLabel}</p>
+              <div className="grid gap-2 rounded-xl border border-default bg-surface-secondary p-3 text-sm sm:min-w-[220px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-secondary">Results</span>
+                  <span className="font-medium">{totalResults}</span>
+                </div>
+                <div className="text-secondary">{status}</div>
               </div>
             </div>
-            <div className="grid gap-2 rounded-xl border border-default bg-surface-secondary p-3 text-sm sm:min-w-[220px]">
-              <div className="flex items-center justify-between">
-                <span className="text-secondary">Results</span>
-                <span className="font-medium">{totalResults}</span>
-              </div>
-              <div className="text-secondary">{status}</div>
-            </div>
-          </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(filters.length > 0 ? filters : ["Run a search tool to populate this view"]).map((filter) => (
-              <Badge key={filter} color="secondary" variant="soft" pill>
-                {filter}
-              </Badge>
-            ))}
-          </div>
-        </section>
+            {filters.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {filters.map((filter) => (
+                  <Badge key={filter} color="secondary" variant="soft" pill>
+                    {filter}
+                  </Badge>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_360px]">
           <div className="grid gap-3">
@@ -390,32 +397,31 @@ export function App() {
                       active ? "border-primary ring-1 ring-primary/20" : "border-default hover:border-secondary"
                     }`}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="heading-sm truncate">{property.name}</h2>
-                          {property.roomsLeft ? (
-                            <Badge color="success" variant="soft" pill>
-                              {property.roomsLeft} left
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-sm text-secondary">{property.address}</p>
-                        <p className="mt-2 text-sm text-primary">
-                          {property.shortDescription ?? "Apartment-style Quest stay with flexible room options."}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {amenityTags(property).map((tag) => (
-                            <Badge key={tag} color="secondary" variant="outline" pill>
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="heading-sm">{property.name}</h2>
+                        {property.roomsLeft ? (
+                          <Badge color="success" variant="soft" pill>
+                            {property.roomsLeft} left
+                          </Badge>
+                        ) : null}
                       </div>
+                      <p className="text-sm text-secondary">{property.address}</p>
+                      <p className="text-sm text-primary">
+                        {property.shortDescription ?? "Apartment-style Quest stay with flexible room options."}
+                      </p>
 
-                      <div className="shrink-0 rounded-xl border border-default bg-surface-secondary px-3 py-2">
+                      <div className="w-fit rounded-xl border border-default bg-surface-secondary px-3 py-2">
                         <p className="text-xs text-secondary">From</p>
                         <p className="mt-1 font-semibold text-primary">{priceLabel}</p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {amenityTags(property).map((tag) => (
+                          <Badge key={tag} color="secondary" variant="outline" pill>
+                            {tag}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
                   </button>
