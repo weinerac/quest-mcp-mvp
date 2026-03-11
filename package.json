@@ -4,14 +4,27 @@
   "description": "Quest Apartment Hotels MCP Server — Australia POC",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "build": "npm run build:widget",
+    "build:widget": "node scripts/build-widget.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json",
     "dev": "vercel dev"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.2.2",
     "@modelcontextprotocol/sdk": "^1.10.1",
+    "@openai/apps-sdk-ui": "^0.2.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1",
+    "vite": "^6.4.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-darwin-arm64": "^4.2.1",
+    "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
     "vercel": "^39.0.0"

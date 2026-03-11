@@ -18,6 +18,8 @@
  * Bookings are in-memory (reset on cold start — POC only).
  */
 
+import { readFileSync } from "node:fs";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
@@ -87,6 +89,7 @@ interface Booking {
 }
 
 const SEARCH_WIDGET_URI = "ui://quest/widgets/property-search-v1.html";
+const SEARCH_WIDGET_BUILD_PATH = new URL("../public/quest-property-search.html", import.meta.url);
 
 const SEARCH_WIDGET_HTML = String.raw`<!doctype html>
 <html lang="en">
@@ -3499,7 +3502,7 @@ function createServer(): McpServer {
         {
           uri: SEARCH_WIDGET_URI,
           mimeType: "text/html;profile=mcp-app",
-          text: SEARCH_WIDGET_HTML,
+          text: readFileSync(SEARCH_WIDGET_BUILD_PATH, "utf8"),
           _meta: {
             ui: {
               prefersBorder: true,

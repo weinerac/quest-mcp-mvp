@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "@openai/apps-sdk-ui/css";
+@source "../src/**/*.{ts,tsx}";
+@source "../../node_modules/@openai/apps-sdk-ui";
+
+:root {
+  --quest-ink: #102233;
+  --quest-muted: #597082;
+  --quest-line: rgba(16, 34, 51, 0.1);
+  --quest-brand: #0e6b57;
+  --quest-brand-strong: #0a5847;
+  --quest-gold: #c59a4a;
+  --quest-sand: #f6f2ea;
+  --quest-sky: #d8ece8;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(14, 107, 87, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(197, 154, 74, 0.22), transparent 30%),
+    linear-gradient(180deg, #f9fbfd 0%, #eef3f7 100%);
+  color: var(--quest-ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.quest-shell {
+  min-height: 100vh;
+}
+
+.quest-card-glow {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.34), transparent 22%),
+    linear-gradient(135deg, rgba(9, 65, 54, 0.96), rgba(20, 116, 95, 0.9) 52%, rgba(197, 154, 74, 0.72));
+}
+
+.quest-photo {
+  background:
+    linear-gradient(180deg, rgba(7, 15, 24, 0.02), rgba(7, 15, 24, 0.5)),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.3), transparent 22%),
+    linear-gradient(135deg, #1e3f5a 0%, #1c7a66 45%, #d7b06a 100%);
+}
+
+.quest-mesh {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-position: center;
+  background-size: 24px 24px;
+}
+
+.quest-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.quest-label {
+  color: var(--quest-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quest-select {
+  appearance: none;
+  width: 100%;
+  border: 1px solid rgba(16, 34, 51, 0.12);
+  border-radius: 0.95rem;
+  padding: 0.8rem 0.95rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--quest-ink);
+  font: inherit;
+}
+
+.quest-select:focus {
+  outline: 2px solid rgba(14, 107, 87, 0.24);
+  outline-offset: 2px;
+}
+
+.quest-divider {
+  border-top: 1px solid rgba(16, 34, 51, 0.08);
+}
