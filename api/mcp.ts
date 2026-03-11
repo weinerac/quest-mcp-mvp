@@ -430,35 +430,49 @@ const SEARCH_WIDGET_HTML = String.raw`<!doctype html>
 
       function renderResults() {
         const payload = state.lastResult;
-        if (!payload || !Array.isArray(payload.properties) || payload.properties.length === 0) {
+        const propertyResults = Array.isArray(payload?.properties) ? payload.properties : null;
+        const availabilityResults = Array.isArray(payload?.results) ? payload.results : null;
+
+        if (!payload || (!propertyResults && !availabilityResults) || ((propertyResults?.length ?? 0) === 0 && (availabilityResults?.length ?? 0) === 0)) {
           summaryTotalEl.textContent = "0";
           resultsEl.innerHTML = '<div class="empty">No properties available for the current search.</div>';
           return;
         }
 
-        summaryTotalEl.textContent = String(payload.total || payload.properties.length);
-        resultsEl.innerHTML = payload.properties.map((property) => {
+        const items = propertyResults ?? availabilityResults ?? [];
+        summaryTotalEl.textContent = String(payload.total || items.length);
+        resultsEl.innerHTML = items.map((property) => {
+          const propertyId = property.id || property.propertyId;
+          const propertyName = property.name || property.propertyName;
+          const description = property.shortDescription || (property.bestRate ? (property.roomType + " available · " + property.roomsLeft + " room" + (property.roomsLeft !== 1 ? "s" : "") + " left") : "");
           const amenities = getAmenityTags(property).map((item) => '<span class="tag">' + item + "</span>").join("");
-          const roomTypes = (property.roomTypes || []).map((room) => (
-            '<div class="room"><strong>' + room.type + '</strong><span>' + room.fromRate + "</span></div>"
-          )).join("");
+          const roomTypes = property.roomTypes
+            ? property.roomTypes.map((room) => (
+                '<div class="room"><strong>' + room.type + '</strong><span>' + room.fromRate + "</span></div>"
+              )).join("")
+            : property.bestRate
+              ? [
+                  '<div class="room"><strong>' + property.roomType + '</strong><span>$' + property.bestRate.nightlyRate + "/night</span></div>",
+                  '<div class="room"><strong>' + property.bestRate.planName + '</strong><span>$' + property.bestRate.totalCost + " total</span></div>",
+                ].join("")
+              : "";
 
           return [
-            '<article class="card" data-property-id="' + property.id + '">',
+            '<article class="card" data-property-id="' + propertyId + '">',
             '<div class="card-top">',
             "<div>",
-            "<h3>" + property.name + "</h3>",
+            "<h3>" + propertyName + "</h3>",
             '<div class="subtle">' + property.address + "</div>",
-            '<div class="subtle">' + "⭐".repeat(Math.round(property.starRating || 0)) + " · " + (property.shortDescription || "") + "</div>",
+            '<div class="subtle">' + "⭐".repeat(Math.round(property.starRating || 0)) + " · " + description + "</div>",
             "</div>",
             "</div>",
             '<div class="row">' + amenities + "</div>",
             '<div class="room-list">' + roomTypes + "</div>",
             '<div class="actions">',
-            '<button class="primary" data-action="details" data-property-id="' + property.id + '">Load details</button>',
-            '<button class="secondary" data-action="availability" data-property-id="' + property.id + '" data-property-name="' + property.name + '">Ask about availability</button>',
+            '<button class="primary" data-action="details" data-property-id="' + propertyId + '">Load details</button>',
+            '<button class="secondary" data-action="availability" data-property-id="' + propertyId + '" data-property-name="' + propertyName + '">Ask about availability</button>',
             "</div>",
-            renderDetails(property.id),
+            renderDetails(propertyId),
             "</article>",
           ].join("");
         }).join("");
@@ -3846,6 +3860,14 @@ Examples:
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        ui: {
+          resourceUri: SEARCH_WIDGET_URI,
+        },
+        "openai/outputTemplate": SEARCH_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Searching live Quest availability…",
+        "openai/toolInvocation/invoked": "Quest availability ready.",
+      },
     },
     async (params) => {
       const nights = calculateNights(params.check_in, params.check_out);
