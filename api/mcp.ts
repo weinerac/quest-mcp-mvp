@@ -955,15 +955,23 @@ Examples:
         return { content: [{ type: "text", text: JSON.stringify(output, null, 2) }], structuredContent: output };
       }
 
-      const lines = [`# Quest Properties (${results.length} found)\n`];
+      const lines = [`# 🏨 Quest Properties — ${results.length} found\n`];
       for (const p of results) {
-        lines.push(`## ${p.name}  ⭐ ${p.starRating}`);
-        lines.push(`**${p.address}, ${p.suburb} ${p.state} ${p.postcode}**`);
-        lines.push(p.shortDescription);
-        lines.push(`**Amenities:** ${p.amenities.join(", ")}`);
-        lines.push(`**Rooms from:** ${p.roomTypes.map(r => `${r.type} $${r.baseRate}`).join(" | ")} AUD/night`);
-        lines.push(`**Property ID:** \`${p.id}\`\n`);
+        lines.push(`---`);
+        lines.push(`## ${p.name}  ${"⭐".repeat(Math.round(p.starRating))}`);
+        lines.push(`📍 ${p.address}, ${p.suburb} ${p.state} ${p.postcode}`);
+        lines.push(`\n> ${p.shortDescription}\n`);
+        const icons = [
+          p.hasGym ? "🏋️ Gym" : null,
+          p.hasPool ? "🏊 Pool" : null,
+          p.hasParking ? "🅿️ Parking" : null,
+          p.hasConferenceRoom ? "📞 Conference" : null,
+        ].filter(Boolean);
+        if (icons.length) lines.push(icons.join("  ·  "));
+        lines.push(`\n🛏️ ${p.roomTypes.map(r => `**${r.type}** from $${r.baseRate}`).join("  |  ")} AUD/night`);
+        lines.push(`🔑 \`${p.id}\``);
       }
+      lines.push(`\n---`);
       return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
     }
   );
@@ -1007,16 +1015,30 @@ Returns full description, room types, amenities, coordinates, check-in/out times
         return { content: [{ type: "text", text: JSON.stringify(output, null, 2) }], structuredContent: output };
       }
 
+      const icons = [
+        p.hasGym ? "🏋️ Gym" : null,
+        p.hasPool ? "🏊 Pool" : null,
+        p.hasParking ? "🅿️ Parking" : null,
+        p.hasConferenceRoom ? "📞 Conference" : null,
+      ].filter(Boolean);
       const lines = [
-        `# ${p.name}  ⭐ ${p.starRating}`,
-        `**${p.address}, ${p.suburb} ${p.state} ${p.postcode}**`,
-        `**GPS:** ${p.coordinates.lat}, ${p.coordinates.lng}\n`,
-        `## About\n${p.description}\n`,
-        `## Facilities\n${p.amenities.map(a => `- ${a}`).join("\n")}\n`,
-        `## Check-in / Check-out\n- Check-in from **${p.checkInTime}**\n- Check-out by **${p.checkOutTime}**\n`,
-        `## Room Types`,
-        ...p.roomTypes.map(r => `- **${r.type}**: ${r.count} rooms, from AUD $${r.baseRate}/night`),
-        `\n[View on Quest Website](${p.url})`,
+        `# 🏨 ${p.name}`,
+        `${"⭐".repeat(Math.round(p.starRating))}  ·  ${icons.join("  ·  ")}`,
+        `\n📍 ${p.address}, ${p.suburb} ${p.state} ${p.postcode}`,
+        `🗺️ [${p.coordinates.lat}, ${p.coordinates.lng}](https://maps.google.com/?q=${p.coordinates.lat},${p.coordinates.lng})`,
+        `\n---`,
+        `\n## About\n${p.description}\n`,
+        `## 🛏️ Room Types\n`,
+        `| Room Type | Available | From (AUD/night) |`,
+        `|-----------|-----------|-----------------|`,
+        ...p.roomTypes.map(r => `| ${r.type} | ${r.count} rooms | **$${r.baseRate}** |`),
+        `\n## 🕐 Check-in & Check-out`,
+        `- ✅ Check-in from **${p.checkInTime}**`,
+        `- 🚪 Check-out by **${p.checkOutTime}**`,
+        `\n## 🏅 Facilities`,
+        ...p.amenities.map(a => `- ${a}`),
+        `\n---`,
+        `🔑 Property ID: \`${p.id}\`  ·  [View on Quest Website](${p.url})`,
       ];
       return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
     }
@@ -1078,15 +1100,20 @@ Examples:
       }
 
       const lines = [
-        `# Availability: ${p.name}`,
-        `**${params.check_in} → ${params.check_out}** (${nights} night${nights !== 1 ? "s" : ""})`,
-        anyAvailable ? "\n✅ Rooms available!" : "\n❌ No rooms available for these dates.",
-        "\n## Room Types",
+        `# 📅 Availability — ${p.name}`,
+        `\n📍 ${p.address}, ${p.suburb} ${p.state}`,
+        `🗓️ **${params.check_in}** → **${params.check_out}** · ${nights} night${nights !== 1 ? "s" : ""}`,
+        `\n${anyAvailable ? "✅ **Rooms available for these dates!**" : "❌ **No rooms available for these dates.**"}`,
+        `\n| Room Type | Status | Rooms Left | From (AUD/night) |`,
+        `|-----------|--------|-----------|-----------------|`,
       ];
       for (const r of availability) {
-        const icon = r.available ? "✅" : "❌";
-        lines.push(`${icon} **${r.roomType}**: ${r.available ? `${r.roomsLeft} room${r.roomsLeft !== 1 ? "s" : ""} left — AUD $${r.baseRate}/night base` : "Not available"}`);
+        const status = r.available ? "✅ Available" : "❌ Sold out";
+        const left = r.available ? `${r.roomsLeft}` : "—";
+        const rate = r.available ? `**$${r.baseRate}**` : "—";
+        lines.push(`| ${r.roomType} | ${status} | ${left} | ${rate} |`);
       }
+      if (anyAvailable) lines.push(`\n_To check rates: use \`quest_get_rates\` with property_id \`${p.id}\`_`);
       return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
     }
   );
@@ -1139,17 +1166,22 @@ Rate plans:
         return { content: [{ type: "text", text: JSON.stringify(output, null, 2) }], structuredContent: output };
       }
 
+      const cheapestPlan = plans.reduce((min, r) => r.nightlyRate < min.nightlyRate ? r : min, plans[0]);
       const lines = [
-        `# Rates: ${p.name} — ${params.room_type}`,
-        `**${params.check_in} → ${params.check_out}** (${nights} night${nights !== 1 ? "s" : ""})\n`,
+        `# 💰 Rates — ${p.name}`,
+        `\n🛏️ **${params.room_type}**  ·  📍 ${p.suburb}, ${p.state}`,
+        `🗓️ **${params.check_in}** → **${params.check_out}** · ${nights} night${nights !== 1 ? "s" : ""}`,
+        `\n🏷️ Best rate: **AUD $${cheapestPlan.nightlyRate}/night** (${cheapestPlan.planName}) — **$${cheapestPlan.totalCost} total**`,
+        `\n| Rate Plan | Code | Per Night | ${nights}× Total | Cancellation |`,
+        `|-----------|------|-----------|---------|--------------|`,
       ];
       for (const plan of plans) {
-        const badge = plan.isPromotional ? " 🏷️" : plan.isCorporate ? " 🏢" : "";
-        lines.push(`### ${plan.planName}${badge} (${plan.planCode})`);
-        lines.push(`- **$${plan.nightlyRate}/night** × ${nights} = **AUD $${plan.totalCost} total**`);
-        lines.push(`- Inclusions: ${plan.inclusions.join(", ")}`);
-        lines.push(`- ${plan.cancellationPolicy}\n`);
+        const badge = plan.isPromotional ? "🏷️ " : plan.isCorporate ? "🏢 " : "";
+        const highlight = plan.planCode === cheapestPlan.planCode ? "**" : "";
+        lines.push(`| ${badge}${plan.planName} | \`${plan.planCode}\` | ${highlight}$${plan.nightlyRate}${highlight} | ${highlight}$${plan.totalCost}${highlight} | ${plan.cancellationPolicy} |`);
       }
+      lines.push(`\n_Inclusions: ${cheapestPlan.inclusions.join(", ")}_`);
+      lines.push(`_To book: use \`quest_create_booking\` with property_id \`${p.id}\` and your chosen rate plan code._`);
       return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
     }
   );
@@ -1248,15 +1280,32 @@ Examples:
         return { content: [{ type: "text", text: JSON.stringify(output, null, 2) }], structuredContent: output };
       }
 
-      const lines = [`# Quest Availability — ${results.length} option${results.length !== 1 ? "s" : ""} found`, `**${params.check_in} → ${params.check_out}** (${nights} night${nights !== 1 ? "s" : ""})\n`];
+      const lines = [
+        `# 🔍 Quest Availability — ${results.length} option${results.length !== 1 ? "s" : ""} found`,
+        `🗓️ **${params.check_in}** → **${params.check_out}** · ${nights} night${nights !== 1 ? "s" : ""}`,
+        params.location ? `📍 ${params.location}` : "",
+      ].filter(l => l !== "");
       for (const r of results) {
-        lines.push(`## ${r.property.name}  ⭐ ${r.property.starRating}`);
-        lines.push(`${r.property.address}, ${r.property.suburb} ${r.property.state}`);
-        lines.push(`**Room:** ${r.roomType} — ${r.roomsLeft} left`);
-        lines.push(`**Best rate:** AUD $${r.bestRate.nightlyRate}/night (${r.bestRate.planName})`);
-        lines.push(`**Total (${nights} nights):** AUD $${r.bestRate.totalCost}`);
-        lines.push(`**Property ID:** \`${r.property.id}\`\n`);
+        const amenityIcons = [
+          r.property.hasGym ? "🏋️" : null,
+          r.property.hasPool ? "🏊" : null,
+          r.property.hasParking ? "🅿️" : null,
+        ].filter(Boolean).join(" ");
+        lines.push(`\n---`);
+        lines.push(`## 🏨 ${r.property.name}  ${"⭐".repeat(Math.round(r.property.starRating))}`);
+        lines.push(`📍 ${r.property.address}, ${r.property.suburb} ${r.property.state}  ${amenityIcons}`);
+        lines.push(`\n🛏️ **${r.roomType}** · ${r.roomsLeft} room${r.roomsLeft !== 1 ? "s" : ""} left`);
+        lines.push(`\n| Rate Plan | Per Night | ${nights}-Night Total |`);
+        lines.push(`|-----------|-----------|------------|`);
+        const allPlans = getRatePlans(r.property, r.roomType as RoomType["type"], params.check_in, params.check_out);
+        for (const plan of allPlans) {
+          const isBest = plan.planCode === r.bestRate.planCode;
+          lines.push(`| ${isBest ? "✨ " : ""}${plan.planName} (\`${plan.planCode}\`) | ${isBest ? "**" : ""}$${plan.nightlyRate}${isBest ? "**" : ""} | ${isBest ? "**" : ""}$${plan.totalCost}${isBest ? "**" : ""} |`);
+        }
+        lines.push(`\n🔑 \`${r.property.id}\``);
       }
+      lines.push(`\n---`);
+      lines.push(`_To get a quote: \`quest_get_booking_quote\` · To book: \`quest_create_booking\`_`);
       return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
     }
   );
@@ -1305,16 +1354,19 @@ Args:
 
       const cheapest = plans.reduce((min, r) => r.nightlyRate < min.nightlyRate ? r : min, plans[0]);
       const lines = [
-        `# Quote: ${p.name} — ${params.room_type}`,
-        `**${params.check_in} → ${params.check_out}** (${nights} night${nights !== 1 ? "s" : ""})`,
-        `**Best available:** AUD $${cheapest.nightlyRate}/night — **$${cheapest.totalCost} total**\n`,
+        `# 🧾 Booking Quote — ${p.name}`,
+        `\n🛏️ **${params.room_type}**  ·  📍 ${p.suburb}, ${p.state}`,
+        `🗓️ **${params.check_in}** → **${params.check_out}** · ${nights} night${nights !== 1 ? "s" : ""}`,
+        `\n✨ **Best rate: AUD $${cheapest.nightlyRate}/night — $${cheapest.totalCost} total** (${cheapest.planName})`,
+        `\n| Rate Plan | Code | Per Night | ${nights}× Total | Cancellation |`,
+        `|-----------|------|-----------|---------|--------------|`,
       ];
       for (const plan of plans) {
-        lines.push(`**${plan.planName}** (${plan.planCode})`);
-        lines.push(`  $${plan.nightlyRate}/night × ${nights} nights = **AUD $${plan.totalCost}**`);
-        lines.push(`  _${plan.cancellationPolicy}_\n`);
+        const isBest = plan.planCode === cheapest.planCode;
+        lines.push(`| ${isBest ? "✨ " : ""}${plan.planName} | \`${plan.planCode}\` | ${isBest ? "**" : ""}$${plan.nightlyRate}${isBest ? "**" : ""} | ${isBest ? "**" : ""}$${plan.totalCost}${isBest ? "**" : ""} | ${plan.cancellationPolicy} |`);
       }
-      lines.push("_To book, use `quest_create_booking` with your preferred rate plan code._");
+      lines.push(`\n_Inclusions: ${cheapest.inclusions.join(", ")}_`);
+      lines.push(`\n> Ready to book? Use \`quest_create_booking\` with property_id \`${p.id}\`, room_type \`${params.room_type}\`, and rate_plan_code \`${cheapest.planCode}\``);
       return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
     }
   );
