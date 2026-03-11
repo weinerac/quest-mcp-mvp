@@ -247,6 +247,7 @@ export function App() {
   const [quote, setQuote] = useState<QuotePayload | null>(null);
   const [booking, setBooking] = useState<BookingPayload | null>(null);
   const [busyAction, setBusyAction] = useState<"" | "quote" | "details" | "book">("");
+  const [actionError, setActionError] = useState("");
   const [showAllResults, setShowAllResults] = useState(false);
   const [form, setForm] = useState({
     checkIn: nextDate(7),
@@ -308,7 +309,14 @@ export function App() {
     [selectedPropertyWithDetails]
   );
   const activeQuote = quote?.propertyId === selectedProperty?.id ? quote : null;
-  const canSubmitBooking = Boolean(form.guestName.trim() && form.guestEmail.trim() && activeQuote?.quote?.[0]);
+  const bookingValidationError =
+    !form.guestName.trim() ? "Enter the lead guest name." :
+    !form.guestEmail.trim() ? "Enter the guest email." :
+    !/\S+@\S+\.\S+/.test(form.guestEmail) ? "Enter a valid email address." :
+    !form.guestPhone.trim() ? "Enter the guest phone number." :
+    !activeQuote?.quote?.[0] ? "Get a live quote before booking." :
+    "";
+  const canSubmitBooking = bookingValidationError === "";
 
   useEffect(() => {
     if (!selectedProperty) return;
@@ -348,6 +356,7 @@ export function App() {
 
   useEffect(() => {
     setQuote(null);
+    setActionError("");
   }, [selectedId, form.checkIn, form.checkOut, form.guests, form.roomType]);
 
   useEffect(() => {
@@ -393,6 +402,7 @@ export function App() {
     const nextProperty = properties.find((property) => property.id === propertyId) ?? null;
     setSelectedId(propertyId);
     setScreen("checkout");
+    setActionError("");
 
     if (!app || !nextProperty) return;
 
@@ -413,6 +423,7 @@ export function App() {
     if (!app || !selectedProperty) return;
     setBusyAction("quote");
     setBooking(null);
+    setActionError("");
     setStatus(`Fetching live rate for ${selectedProperty.name}.`);
 
     try {
@@ -432,15 +443,31 @@ export function App() {
         setStatus("Rate ready.");
       }
     } catch (requestError) {
-      setStatus(requestError instanceof Error ? requestError.message : "Unable to fetch quote.");
+      const message = requestError instanceof Error ? requestError.message : "Unable to fetch quote.";
+      setActionError(message);
+      setStatus(message);
     } finally {
       setBusyAction("");
     }
   }
 
   async function createBooking() {
-    if (!app || !selectedProperty || !activeQuote?.quote?.[0]) return;
+    if (!app || !selectedProperty) return;
+    if (bookingValidationError) {
+      setActionError(bookingValidationError);
+      setStatus(bookingValidationError);
+      return;
+    }
+    const selectedQuote = activeQuote?.quote?.[0];
+    if (!selectedQuote) {
+      const message = "Get a live quote before booking.";
+      setActionError(message);
+      setStatus(message);
+      return;
+    }
+
     setBusyAction("book");
+    setActionError("");
     setStatus(`Creating booking for ${selectedProperty.name}.`);
 
     try {
@@ -451,7 +478,7 @@ export function App() {
           room_type: form.roomType,
           check_in: form.checkIn,
           check_out: form.checkOut,
-          rate_plan_code: activeQuote.quote[0].planCode,
+          rate_plan_code: selectedQuote.planCode,
           guests: Number(form.guests),
           guest_name: form.guestName,
           guest_email: form.guestEmail,
@@ -495,18 +522,23 @@ export function App() {
           });
 
           if (syncResult.isError) {
-            setStatus("Booking confirmed, but ChatGPT rejected the confirmation handoff.");
+            const message = "Booking confirmed, but ChatGPT rejected the confirmation handoff.";
+            setActionError(message);
+            setStatus(message);
           }
         } catch (messageError) {
-          setStatus(
+          const message =
             messageError instanceof Error
               ? `Booking confirmed, but chat sync failed: ${messageError.message}`
-              : "Booking confirmed, but chat sync failed."
-          );
+              : "Booking confirmed, but chat sync failed.";
+          setActionError(message);
+          setStatus(message);
         }
       }
     } catch (requestError) {
-      setStatus(requestError instanceof Error ? requestError.message : "Unable to complete booking.");
+      const message = requestError instanceof Error ? requestError.message : "Unable to complete booking.";
+      setActionError(message);
+      setStatus(message);
     } finally {
       setBusyAction("");
     }
@@ -696,6 +728,12 @@ export function App() {
                   {activeQuote ? "Refresh quote" : "Get live rate"}
                 </Button>
               </div>
+
+              {actionError ? (
+                <div className="mt-4 rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
+                  {actionError}
+                </div>
+              ) : null}
 
               {activeQuote?.quote?.[0] ? (
                 <div className="mt-4 rounded-2xl border border-success/20 bg-success/5 p-4">
