@@ -86,6 +86,467 @@ interface Booking {
   createdAt: string;
 }
 
+const SEARCH_WIDGET_URI = "ui://quest/widgets/property-search";
+
+const SEARCH_WIDGET_HTML = String.raw`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quest Property Search</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f7fb;
+        --surface: rgba(255, 255, 255, 0.96);
+        --surface-strong: #ffffff;
+        --text: #102033;
+        --muted: #5e6b7a;
+        --border: rgba(16, 32, 51, 0.12);
+        --accent: #12715b;
+        --accent-strong: #0d5a48;
+        --pill: rgba(18, 113, 91, 0.12);
+        --shadow: 0 10px 30px rgba(16, 32, 51, 0.08);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1722;
+          --surface: rgba(17, 24, 39, 0.94);
+          --surface-strong: #111827;
+          --text: #f3f7fb;
+          --muted: #aeb8c4;
+          --border: rgba(243, 247, 251, 0.12);
+          --accent: #49c5a5;
+          --accent-strong: #81dbc4;
+          --pill: rgba(73, 197, 165, 0.14);
+          --shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .app {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .hero {
+        background: linear-gradient(135deg, rgba(18,113,91,0.14), rgba(18,113,91,0.03));
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        margin-bottom: 16px;
+      }
+      .hero h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .hero p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 860px) {
+        .layout { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+      .panel h2 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .metric {
+        background: var(--surface-strong);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+      }
+      .metric .label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .metric .value {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: var(--pill);
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .results {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .empty {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--muted);
+      }
+      .card {
+        background: var(--surface-strong);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 16px;
+      }
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: start;
+      }
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+      .subtle {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .tag {
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+      }
+      .room-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .room {
+        min-width: 132px;
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+      }
+      .room strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      button, a.button {
+        appearance: none;
+        border: 0;
+        cursor: pointer;
+        text-decoration: none;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .primary {
+        background: var(--accent);
+        color: white;
+      }
+      .secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .details {
+        margin-top: 12px;
+        padding: 14px;
+        border-radius: 14px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+      }
+      .details h4 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      .details p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <section class="hero">
+        <h1>Quest property explorer</h1>
+        <p>Browse Quest Apartment Hotels results in a richer UI and request more details without leaving the conversation.</p>
+      </section>
+      <section class="layout">
+        <aside class="panel">
+          <h2>Search summary</h2>
+          <div class="summary">
+            <div class="metric">
+              <div class="label">Properties found</div>
+              <div class="value" id="summary-total">0</div>
+            </div>
+            <div class="metric">
+              <div class="label">Current location</div>
+              <div class="value" id="summary-location">Any</div>
+            </div>
+          </div>
+          <div class="filters" id="filters"></div>
+          <div class="status" id="status">Waiting for tool results…</div>
+        </aside>
+        <main class="panel">
+          <h2>Results</h2>
+          <div class="results" id="results">
+            <div class="empty">Run <strong>quest_search_properties</strong> in ChatGPT to populate this widget.</div>
+          </div>
+        </main>
+      </section>
+    </div>
+    <script type="module">
+      const state = {
+        lastInput: null,
+        lastResult: null,
+        detailsById: new Map(),
+      };
+
+      const resultsEl = document.getElementById("results");
+      const filtersEl = document.getElementById("filters");
+      const summaryTotalEl = document.getElementById("summary-total");
+      const summaryLocationEl = document.getElementById("summary-location");
+      const statusEl = document.getElementById("status");
+
+      function rpcRequest(method, params) {
+        const id = "rpc_" + Math.random().toString(36).slice(2);
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            window.removeEventListener("message", onMessage);
+            reject(new Error("Timed out waiting for " + method));
+          }, 15000);
+
+          function onMessage(event) {
+            if (event.source !== window.parent) return;
+            const message = event.data;
+            if (!message || message.jsonrpc !== "2.0" || message.id !== id) return;
+            clearTimeout(timeout);
+            window.removeEventListener("message", onMessage);
+            if (message.error) {
+              reject(new Error(message.error.message || "RPC request failed"));
+              return;
+            }
+            resolve(message.result);
+          }
+
+          window.addEventListener("message", onMessage, { passive: true });
+          window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+        });
+      }
+
+      function renderFilters() {
+        const input = state.lastInput || {};
+        const entries = [
+          input.location ? "Location: " + input.location : null,
+          input.state ? "State: " + input.state : null,
+          input.has_gym ? "Gym" : null,
+          input.has_pool ? "Pool" : null,
+          input.has_parking ? "Parking" : null,
+          input.has_conference_room ? "Conference" : null,
+        ].filter(Boolean);
+
+        summaryLocationEl.textContent = input.location || input.state || "Any";
+        filtersEl.innerHTML = entries.length
+          ? entries.map((entry) => '<span class="pill">' + entry + "</span>").join("")
+          : '<span class="subtle">No filters applied.</span>';
+      }
+
+      function getAmenityTags(property) {
+        const tags = [];
+        if (property.hasGym) tags.push("Gym");
+        if (property.hasPool) tags.push("Pool");
+        if (property.hasParking) tags.push("Parking");
+        if (property.hasConferenceRoom) tags.push("Conference");
+        return tags;
+      }
+
+      function renderDetails(propertyId) {
+        const details = state.detailsById.get(propertyId);
+        if (!details) return "";
+        const amenities = (details.amenities || []).map((item) => '<span class="tag">' + item + "</span>").join("");
+        const roomTypes = (details.roomTypes || []).map((room) => (
+          '<div class="room"><strong>' + room.type + '</strong><span>$' + room.baseRatePerNight + "/night · " + room.count + " rooms</span></div>"
+        )).join("");
+
+        return [
+          '<div class="details">',
+          "<h4>Property details</h4>",
+          "<p>" + (details.description || "") + "</p>",
+          '<div class="row">' + amenities + "</div>",
+          '<div class="room-list">' + roomTypes + "</div>",
+          "</div>",
+        ].join("");
+      }
+
+      function renderResults() {
+        const payload = state.lastResult;
+        if (!payload || !Array.isArray(payload.properties) || payload.properties.length === 0) {
+          summaryTotalEl.textContent = "0";
+          resultsEl.innerHTML = '<div class="empty">No properties available for the current search.</div>';
+          return;
+        }
+
+        summaryTotalEl.textContent = String(payload.total || payload.properties.length);
+        resultsEl.innerHTML = payload.properties.map((property) => {
+          const amenities = getAmenityTags(property).map((item) => '<span class="tag">' + item + "</span>").join("");
+          const roomTypes = (property.roomTypes || []).map((room) => (
+            '<div class="room"><strong>' + room.type + '</strong><span>' + room.fromRate + "</span></div>"
+          )).join("");
+
+          return [
+            '<article class="card" data-property-id="' + property.id + '">',
+            '<div class="card-top">',
+            "<div>",
+            "<h3>" + property.name + "</h3>",
+            '<div class="subtle">' + property.address + "</div>",
+            '<div class="subtle">' + "⭐".repeat(Math.round(property.starRating || 0)) + " · " + (property.shortDescription || "") + "</div>",
+            "</div>",
+            "</div>",
+            '<div class="row">' + amenities + "</div>",
+            '<div class="room-list">' + roomTypes + "</div>",
+            '<div class="actions">',
+            '<button class="primary" data-action="details" data-property-id="' + property.id + '">Load details</button>',
+            '<button class="secondary" data-action="availability" data-property-id="' + property.id + '" data-property-name="' + property.name + '">Ask about availability</button>',
+            "</div>",
+            renderDetails(property.id),
+            "</article>",
+          ].join("");
+        }).join("");
+      }
+
+      async function loadDetails(propertyId, button) {
+        if (state.detailsById.has(propertyId)) {
+          renderResults();
+          return;
+        }
+
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Loading...";
+
+        try {
+          const result = await rpcRequest("tools/call", {
+            name: "quest_get_property_details",
+            arguments: {
+              property_id: propertyId,
+              response_format: "json",
+            },
+          });
+          if (result && result.structuredContent) {
+            state.detailsById.set(propertyId, result.structuredContent);
+            renderResults();
+          }
+        } catch (error) {
+          statusEl.textContent = error instanceof Error ? error.message : "Failed to load details.";
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
+
+      async function sendAvailabilityPrompt(propertyId, propertyName) {
+        const text = "Check availability for " + propertyName + " (" + propertyId + ") and help me choose the best dates and room type.";
+        try {
+          await rpcRequest("ui/message", {
+            role: "user",
+            content: [{ type: "text", text }],
+          });
+        } catch (error) {
+          statusEl.textContent = error instanceof Error ? error.message : "Unable to send follow-up.";
+        }
+      }
+
+      resultsEl.addEventListener("click", async (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const action = target.dataset.action;
+        const propertyId = target.dataset.propertyId;
+        if (!action || !propertyId) return;
+
+        if (action === "details") {
+          await loadDetails(propertyId, target);
+        }
+
+        if (action === "availability") {
+          await sendAvailabilityPrompt(propertyId, target.dataset.propertyName || propertyId);
+        }
+      });
+
+      window.addEventListener("message", (event) => {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!message || message.jsonrpc !== "2.0") return;
+
+        if (message.method === "ui/notifications/tool-input") {
+          state.lastInput = message.params || null;
+          renderFilters();
+          statusEl.textContent = "Search input received.";
+        }
+
+        if (message.method === "ui/notifications/tool-result") {
+          const payload = message.params?.structuredContent || null;
+          state.lastResult = payload;
+          renderFilters();
+          renderResults();
+          statusEl.textContent = payload?.total
+            ? "Showing " + payload.total + " matching properties."
+            : "Tool result received.";
+        }
+      }, { passive: true });
+    </script>
+  </body>
+</html>`;
+
 // ============================================================
 // SAMPLE PROPERTY DATA
 // (Real Australian Quest properties from Quest Locations dataset)
@@ -3011,6 +3472,25 @@ function findProperties(opts: {
 function createServer(): McpServer {
   const server = new McpServer({ name: "quest-mcp-server", version: "1.0.0" });
 
+  server.registerResource(
+    "quest-property-search-widget",
+    SEARCH_WIDGET_URI,
+    {
+      title: "Quest Property Search Widget",
+      description: "Interactive UI for exploring Quest property search results inside ChatGPT.",
+      mimeType: "text/html",
+    },
+    async () => ({
+      contents: [
+        {
+          uri: SEARCH_WIDGET_URI,
+          mimeType: "text/html",
+          text: SEARCH_WIDGET_HTML,
+        },
+      ],
+    })
+  );
+
   // ── Tool 1: quest_search_properties ──────────────────────
   server.registerTool(
     "quest_search_properties",
@@ -3045,6 +3525,11 @@ Examples:
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
       }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        ui: {
+          resourceUri: SEARCH_WIDGET_URI,
+        },
+      },
     },
     async (params) => {
       const results = findProperties({
