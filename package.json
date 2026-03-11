@@ -23,7 +23,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@tailwindcss/oxide-darwin-arm64": "^4.2.1",
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
