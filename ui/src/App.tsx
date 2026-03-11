@@ -169,6 +169,32 @@ function inferDefaultRoomType(property: NormalizedProperty | null, input: Search
   return property?.roomTypes?.[0]?.type ?? DEFAULT_ROOM_TYPE;
 }
 
+function formatStayLabel(input: SearchInput | null, fallbackCheckIn: string, fallbackCheckOut: string) {
+  const checkIn = input?.check_in ?? fallbackCheckIn;
+  const checkOut = input?.check_out ?? fallbackCheckOut;
+  return `${checkIn} - ${checkOut}`;
+}
+
+function getDestinationLabel(input: SearchInput | null) {
+  return input?.location ?? input?.state ?? "Australia";
+}
+
+function renderStarString(rating: number | undefined) {
+  const rounded = Math.max(3, Math.min(5, Math.round(rating ?? 4)));
+  return "★".repeat(rounded) + "☆".repeat(5 - rounded);
+}
+
+function getPropertyVisual(seed: string) {
+  const palettes = [
+    "linear-gradient(135deg, #d7e7ef 0%, #f9f4ea 48%, #e7c48b 100%)",
+    "linear-gradient(135deg, #dbe9e2 0%, #f7f0e6 52%, #d1a86e 100%)",
+    "linear-gradient(135deg, #d8e3f1 0%, #f4efe7 44%, #cfa35f 100%)",
+    "linear-gradient(135deg, #dcebe8 0%, #f7f5ee 42%, #b78b54 100%)",
+  ];
+  const value = seed.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return palettes[value % palettes.length];
+}
+
 function rpcRequest<T>(method: string, params: unknown): Promise<T> {
   const id = `rpc_${Math.random().toString(36).slice(2)}`;
   return new Promise((resolve, reject) => {
@@ -371,212 +397,256 @@ export function App() {
     lastInput?.has_conference_room ? "Conference" : null,
   ].filter(Boolean) as string[];
 
+  const totalResults = lastResult?.total ?? properties.length;
+  const destinationLabel = getDestinationLabel(lastInput);
+  const stayLabel = formatStayLabel(lastInput, form.checkIn, form.checkOut);
+
   return (
-    <div className="quest-shell px-4 py-4 text-[15px] text-[#102233] sm:px-6 lg:px-8">
+    <div className="quest-shell px-3 py-3 text-[15px] text-[#102233] sm:px-4">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
-        <section className="quest-card-glow relative overflow-hidden rounded-[28px] p-5 text-white shadow-[0_28px_60px_rgba(9,35,29,0.22)] sm:p-7">
-          <div className="quest-mesh absolute inset-0 opacity-20" />
-          <div className="relative grid gap-5 lg:grid-cols-[1.35fr_0.95fr]">
-            <div className="space-y-4">
-              <Badge color="success" pill>
-                Quest x Apps SDK UI
-              </Badge>
-              <div className="space-y-2">
-                <h1 className="max-w-2xl text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
-                  Premium Quest property cards, inside the ChatGPT booking journey.
+        <section className="overflow-hidden rounded-[28px] border border-[rgba(8,32,52,0.08)] bg-white shadow-[0_22px_60px_rgba(16,34,51,0.1)]">
+          <div className="grid gap-4 border-b border-[rgba(16,34,51,0.08)] bg-[linear-gradient(135deg,#0c3b44_0%,#14695b_58%,#d3a35f_100%)] px-4 py-4 text-white sm:px-5 lg:grid-cols-[1.3fr_0.9fr]">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge color="success" pill>
+                  Quest stays
+                </Badge>
+                <Badge color="secondary" variant="soft" pill>
+                  {totalResults} options
+                </Badge>
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
+                  {destinationLabel} stays for {stayLabel}
                 </h1>
-                <p className="max-w-2xl text-[15px] leading-6 text-white/82 sm:text-base">
-                  The search results stay conversational, while the app surfaces a polished card, live quote preview, and a minimal booking handoff without leaving ChatGPT.
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/82">
+                  Apartment-style hotels with transparent nightly pricing, room mix visibility, and a direct booking path inside ChatGPT.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {filters.length > 0 ? (
-                  filters.map((filter) => (
-                    <Badge key={filter} color="info" variant="soft" pill>
-                      {filter}
-                    </Badge>
-                  ))
-                ) : (
-                  <Badge color="secondary" variant="soft" pill>
-                    Waiting for search filters
+                {(filters.length > 0 ? filters : ["Dates flexible", "Apartment hotel", "Quest portfolio"]).map((filter) => (
+                  <Badge key={filter} color="info" variant="soft" pill>
+                    {filter}
                   </Badge>
-                )}
+                ))}
               </div>
             </div>
-            <div className="rounded-[24px] border border-white/14 bg-white/10 p-4 backdrop-blur">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Current status</p>
-                  <p className="mt-2 text-lg font-medium text-white">{status}</p>
+            <div className="grid gap-3 rounded-[24px] border border-white/15 bg-white/10 p-4 backdrop-blur">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Destination</p>
+                  <p className="mt-2 text-sm font-semibold">{destinationLabel}</p>
                 </div>
-                <Star className="size-6 text-white/80" />
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Stay</p>
+                  <p className="mt-2 text-sm font-semibold">{stayLabel}</p>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Guests</p>
+                  <p className="mt-2 text-sm font-semibold">{form.guests}</p>
+                </div>
               </div>
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-white/55">Properties</p>
-                  <p className="mt-2 text-3xl font-semibold">{properties.length}</p>
-                </div>
-                <div className="rounded-2xl bg-white/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.16em] text-white/55">Selection</p>
-                  <p className="mt-2 text-base font-medium text-white/92">{selectedProperty?.name ?? "None yet"}</p>
-                </div>
+              <div className="rounded-2xl bg-white/10 px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-white/55">Live status</p>
+                <p className="mt-2 text-sm leading-6 text-white">{status}</p>
               </div>
             </div>
           </div>
-        </section>
 
-        <section className="grid gap-4 xl:grid-cols-[1.05fr_1.4fr]">
-          <aside className="rounded-[28px] border border-[rgba(16,34,51,0.08)] bg-white/90 p-4 shadow-[0_24px_50px_rgba(16,34,51,0.08)] backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--quest-muted)]">Properties</p>
-                <h2 className="mt-1 text-xl font-semibold tracking-[-0.03em]">Discovery cards</h2>
-              </div>
-              <Badge color="secondary" variant="outline" pill>
-                {lastResult?.total ?? properties.length} results
-              </Badge>
-            </div>
-            <div className="grid gap-3">
-              {properties.length === 0 ? (
-                <div className="rounded-[22px] border border-dashed border-[rgba(16,34,51,0.12)] bg-[rgba(246,242,234,0.7)] px-5 py-10 text-center">
-                  <p className="text-base font-medium">No properties loaded yet</p>
-                  <p className="mt-2 text-sm text-[var(--quest-muted)]">
-                    Run <strong>quest_search_properties</strong> or <strong>quest_search_availability</strong> in ChatGPT to populate the card UI.
-                  </p>
+          <div className="grid gap-4 bg-[#f3f6fa] p-3 lg:grid-cols-[1.35fr_0.9fr]">
+            <div className="rounded-[24px] bg-white p-3 shadow-[0_10px_30px_rgba(16,34,51,0.06)]">
+              <div className="flex items-center justify-between gap-3 px-1 pb-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--quest-muted)]">Search results</p>
+                  <h2 className="mt-1 text-2xl font-semibold tracking-[-0.04em]">Available stays</h2>
                 </div>
-              ) : (
-                properties.map((property) => {
-                  const isActive = property.id === selectedProperty?.id;
-                  return (
-                    <button
-                      key={property.id}
-                      type="button"
-                      onClick={() => setSelectedId(property.id)}
-                      className={`group rounded-[24px] border p-3 text-left transition ${
-                        isActive
-                          ? "border-[rgba(14,107,87,0.28)] bg-[rgba(216,236,232,0.56)] shadow-[0_18px_30px_rgba(14,107,87,0.12)]"
-                          : "border-[rgba(16,34,51,0.08)] bg-white hover:-translate-y-0.5 hover:border-[rgba(14,107,87,0.18)]"
-                      }`}
-                    >
-                      <div className="quest-photo relative overflow-hidden rounded-[18px] p-4 text-white">
-                        <div className="absolute inset-0 quest-mesh opacity-20" />
-                        <div className="relative flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/64">
-                              {property.city ?? "Quest Stay"}
-                            </p>
-                            <h3 className="mt-1 text-xl font-semibold tracking-[-0.03em]">{property.name}</h3>
-                          </div>
-                          <Badge color="warning" variant="soft" pill>
-                            {Math.round(property.starRating ?? 4)} star
-                          </Badge>
-                        </div>
-                        <p className="relative mt-12 max-w-xs text-sm leading-6 text-white/82">
-                          {property.shortDescription ?? "Apartment-style accommodation with premium Quest hospitality."}
-                        </p>
-                      </div>
-                      <div className="space-y-3 px-1 pt-3">
-                        <div className="flex items-start gap-2 text-sm text-[var(--quest-muted)]">
-                          <Maps className="mt-0.5 size-4 shrink-0" />
-                          <span>{property.address}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {buildAmenityTags(property).map((tag) => (
-                            <Badge key={tag} color="secondary" variant="soft" pill>
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between gap-3 pt-1">
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.14em] text-[var(--quest-muted)]">From</p>
-                            <p className="mt-1 text-lg font-semibold">
-                              {property.bestRate
-                                ? `${formatCurrency(property.bestRate.nightlyRate)}/night`
-                                : property.roomTypes?.[0]?.fromRate ?? "Quote on request"}
-                            </p>
-                          </div>
-                          <ArrowRight
-                            className={`size-5 transition ${isActive ? "translate-x-1 text-[var(--quest-brand)]" : "text-[var(--quest-muted)] group-hover:translate-x-1"}`}
-                          />
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </aside>
+                <Badge color="secondary" variant="outline" pill>
+                  {totalResults} found
+                </Badge>
+              </div>
 
-          <main className="grid gap-4">
-            <section className="rounded-[30px] border border-[rgba(16,34,51,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,242,234,0.78))] p-4 shadow-[0_24px_50px_rgba(16,34,51,0.08)]">
+              <div className="grid gap-3">
+                {properties.length === 0 ? (
+                  <div className="rounded-[22px] border border-dashed border-[rgba(16,34,51,0.12)] bg-[#fbf8f2] px-5 py-12 text-center">
+                    <p className="text-lg font-semibold">Run a property search to render hotel cards</p>
+                    <p className="mt-2 text-sm text-[var(--quest-muted)]">
+                      Use <strong>quest_search_properties</strong> or <strong>quest_search_availability</strong> and this view will switch to inventory cards.
+                    </p>
+                  </div>
+                ) : (
+                  properties.map((property) => {
+                    const isActive = property.id === selectedProperty?.id;
+                    const previewRate = property.bestRate
+                      ? formatCurrency(property.bestRate.nightlyRate)
+                      : property.roomTypes?.[0]?.fromRate ?? "Quote";
+
+                    return (
+                      <article
+                        key={property.id}
+                        onClick={() => setSelectedId(property.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedId(property.id);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        className={`group grid cursor-pointer gap-3 overflow-hidden rounded-[24px] border bg-white p-3 text-left transition sm:grid-cols-[230px_1fr] ${
+                          isActive
+                            ? "border-[#176c5d] shadow-[0_16px_34px_rgba(23,108,93,0.16)]"
+                            : "border-[rgba(16,34,51,0.08)] hover:-translate-y-0.5 hover:border-[rgba(23,108,93,0.24)] hover:shadow-[0_14px_28px_rgba(16,34,51,0.08)]"
+                        }`}
+                      >
+                        <div
+                          className="quest-photo relative min-h-[180px] overflow-hidden rounded-[20px]"
+                          style={{ backgroundImage: `${getPropertyVisual(property.id)}, radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 24%)` }}
+                        >
+                          <div className="quest-mesh absolute inset-0 opacity-25" />
+                          <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent,rgba(7,18,26,0.68))] p-4 text-white">
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge color="warning" variant="soft" pill>
+                                {renderStarString(property.starRating)}
+                              </Badge>
+                              {property.roomsLeft ? (
+                                <Badge color="success" variant="soft" pill>
+                                  {property.roomsLeft} left
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="mt-9 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/62">
+                              Quest apartment hotel
+                            </p>
+                            <h3 className="mt-1 text-2xl font-semibold tracking-[-0.04em]">{property.name}</h3>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="max-w-2xl">
+                              <p className="text-sm font-medium text-[#18324a]">
+                                {property.shortDescription ?? "Apartment-style accommodation with Quest service and flexible room mixes."}
+                              </p>
+                              <div className="mt-2 flex items-start gap-2 text-sm text-[var(--quest-muted)]">
+                                <Maps className="mt-0.5 size-4 shrink-0" />
+                                <span>{property.address}</span>
+                              </div>
+                            </div>
+                            <div className="rounded-[18px] bg-[#f5f8fc] px-4 py-3 text-right">
+                              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--quest-muted)]">From</p>
+                              <p className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[#0c2f47]">{previewRate}</p>
+                              <p className="text-xs text-[var(--quest-muted)]">per night</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            {buildAmenityTags(property).map((tag) => (
+                              <Badge key={tag} color="secondary" variant="soft" pill>
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+
+                          <div className="grid gap-3 border-t border-[rgba(16,34,51,0.08)] pt-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--quest-muted)]">
+                              <span>{property.roomTypes?.map((room) => room.type).slice(0, 3).join(" · ")}</span>
+                              <span>{property.city ?? destinationLabel}</span>
+                            </div>
+                            <div className="flex items-center gap-2 sm:justify-end">
+                              <Button
+                                color="secondary"
+                                variant="soft"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  sendPrompt(`Compare ${property.name} with other Quest options in ${destinationLabel}.`).catch((error) =>
+                                    setStatus(error instanceof Error ? error.message : "Unable to send follow-up prompt.")
+                                  );
+                                }}
+                              >
+                                <Sparkles />
+                                Compare
+                              </Button>
+                              <Button color="primary">
+                                View stay
+                                <ArrowRight />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <aside className="grid gap-4">
               {selectedPropertyWithDetails ? (
-                <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge color="success" pill>
-                        Featured property
-                      </Badge>
-                      {selectedPropertyWithDetails.roomsLeft ? (
-                        <Badge color="warning" variant="soft" pill>
-                          {selectedPropertyWithDetails.roomsLeft} rooms left
-                        </Badge>
-                      ) : null}
+                <>
+                  <section className="overflow-hidden rounded-[26px] border border-[rgba(16,34,51,0.08)] bg-white shadow-[0_12px_34px_rgba(16,34,51,0.08)]">
+                    <div
+                      className="relative min-h-[220px] border-b border-[rgba(16,34,51,0.08)]"
+                      style={{ backgroundImage: `${getPropertyVisual(selectedPropertyWithDetails.id)}, radial-gradient(circle at top right, rgba(255,255,255,0.35), transparent 24%)` }}
+                    >
+                      <div className="quest-mesh absolute inset-0 opacity-25" />
+                      <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent,rgba(8,18,28,0.74))] p-4 text-white">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge color="warning" variant="soft" pill>
+                            {renderStarString(selectedPropertyWithDetails.starRating)}
+                          </Badge>
+                          {selectedPropertyWithDetails.roomsLeft ? (
+                            <Badge color="success" variant="soft" pill>
+                              {selectedPropertyWithDetails.roomsLeft} rooms left
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">{selectedPropertyWithDetails.name}</h2>
+                        <p className="mt-1 text-sm text-white/78">{selectedPropertyWithDetails.address}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="max-w-xl text-3xl font-semibold tracking-[-0.04em]">
-                        {selectedPropertyWithDetails.name}
-                      </h2>
-                      <p className="mt-2 max-w-2xl text-[15px] leading-7 text-[var(--quest-muted)]">
+
+                    <div className="grid gap-4 p-4">
+                      <p className="text-sm leading-7 text-[var(--quest-muted)]">
                         {selectedPropertyWithDetails.description ?? selectedPropertyWithDetails.shortDescription}
                       </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-[22px] border border-[rgba(16,34,51,0.08)] bg-white/90 p-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--quest-muted)]">Stay details</p>
-                        <div className="mt-3 grid gap-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="size-4 text-[var(--quest-brand)]" />
-                            <span>{selectedPropertyWithDetails.checkInTime ?? selectedPropertyWithDetails.checkIn ?? "14:00"} check-in</span>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[20px] bg-[#f4f8fb] p-4">
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--quest-muted)]">Stay details</p>
+                          <div className="mt-3 grid gap-2 text-sm text-[#18324a]">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="size-4 text-[var(--quest-brand)]" />
+                              <span>{stayLabel}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="size-4 text-[var(--quest-brand)]" />
+                              <span>
+                                Check-in {selectedPropertyWithDetails.checkInTime ?? "14:00"} · Check-out {selectedPropertyWithDetails.checkOutTime ?? "10:00"}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="size-4 text-[var(--quest-brand)]" />
-                            <span>{selectedPropertyWithDetails.checkOutTime ?? selectedPropertyWithDetails.checkOut ?? "10:00"} check-out</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Maps className="size-4 text-[var(--quest-brand)]" />
-                            <span>{selectedPropertyWithDetails.address}</span>
+                        </div>
+                        <div className="rounded-[20px] bg-[#f4f8fb] p-4">
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--quest-muted)]">Apartment mix</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {(selectedPropertyWithDetails.roomTypes ?? []).map((room) => (
+                              <Badge key={room.type} color="info" variant="soft" pill>
+                                {room.type}
+                                {room.baseRatePerNight ? ` · ${formatCurrency(room.baseRatePerNight)}` : ""}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
                       </div>
-                      <div className="rounded-[22px] border border-[rgba(16,34,51,0.08)] bg-white/90 p-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-[var(--quest-muted)]">Apartment mix</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {(selectedPropertyWithDetails.roomTypes ?? []).map((room) => (
-                            <Badge key={room.type} color="info" variant="soft" pill>
-                              {room.type}
-                              {room.baseRatePerNight ? ` · ${formatCurrency(room.baseRatePerNight)}` : ""}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {buildAmenityTags(selectedPropertyWithDetails).map((tag) => (
-                        <Badge key={tag} color="secondary" variant="soft" pill>
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+                  </section>
 
-                  <div className="rounded-[28px] border border-[rgba(16,34,51,0.08)] bg-white p-4 shadow-[0_18px_36px_rgba(16,34,51,0.08)]">
+                  <section className="rounded-[26px] border border-[rgba(16,34,51,0.08)] bg-white p-4 shadow-[0_12px_34px_rgba(16,34,51,0.08)]">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--quest-muted)]">Minimal booking flow</p>
-                        <h3 className="mt-1 text-2xl font-semibold tracking-[-0.04em]">Quote to confirmation</h3>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--quest-muted)]">Reserve this stay</p>
+                        <h3 className="mt-1 text-2xl font-semibold tracking-[-0.04em]">Fast booking panel</h3>
                       </div>
-                      <Sparkles className="size-5 text-[var(--quest-brand)]" />
+                      <Star className="size-5 text-[var(--quest-brand)]" />
                     </div>
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -628,7 +698,7 @@ export function App() {
                     </div>
 
                     <div className="quest-divider mt-4 pt-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--quest-muted)]">Guest details</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--quest-muted)]">Guest details</p>
                       <div className="mt-3 grid gap-3">
                         <Input
                           value={form.guestName}
@@ -655,7 +725,7 @@ export function App() {
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <Button color="primary" block loading={busyAction === "quote"} onClick={requestQuote}>
                         <CreditCard />
-                        Check quote
+                        Show price
                       </Button>
                       <Button
                         color="secondary"
@@ -663,7 +733,7 @@ export function App() {
                         block
                         onClick={() =>
                           sendPrompt(
-                            `Compare ${selectedPropertyWithDetails.name} for ${form.checkIn} to ${form.checkOut} and suggest the best room type for ${form.guests} guests.`
+                            `Compare ${selectedPropertyWithDetails.name} for ${form.checkIn} to ${form.checkOut} and recommend the best Quest option.`
                           ).catch((error) =>
                             setStatus(error instanceof Error ? error.message : "Unable to send follow-up prompt.")
                           )
@@ -675,15 +745,15 @@ export function App() {
                     </div>
 
                     {quote ? (
-                      <div className="mt-4 rounded-[24px] bg-[var(--quest-sand)] p-4">
+                      <div className="mt-4 rounded-[22px] bg-[#f8f4ec] p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--quest-muted)]">Best available quote</p>
-                            <h4 className="mt-1 text-2xl font-semibold">
+                            <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--quest-muted)]">Best current offer</p>
+                            <h4 className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-[#0d2f46]">
                               {formatCurrency(quote.quote[0].totalCost)}
                             </h4>
-                            <p className="mt-1 text-sm text-[var(--quest-muted)]">
-                              {quote.quote[0].planName} at {formatCurrency(quote.quote[0].nightlyRate)}/night
+                            <p className="text-sm text-[var(--quest-muted)]">
+                              {quote.quote[0].planName} · {formatCurrency(quote.quote[0].nightlyRate)}/night
                             </p>
                           </div>
                           <Badge color="success" pill>
@@ -692,29 +762,26 @@ export function App() {
                         </div>
                         <div className="mt-3 grid gap-2">
                           {quote.quote.slice(0, 3).map((plan) => (
-                            <div
-                              key={plan.planCode}
-                              className="flex items-center justify-between rounded-[18px] border border-[rgba(16,34,51,0.08)] bg-white/80 px-3 py-2"
-                            >
+                            <div key={plan.planCode} className="flex items-center justify-between rounded-[18px] bg-white px-3 py-3">
                               <div>
                                 <p className="font-medium">{plan.planName}</p>
                                 <p className="text-sm text-[var(--quest-muted)]">{plan.cancellationPolicy}</p>
                               </div>
-                              <p className="text-base font-semibold">{formatCurrency(plan.totalCost)}</p>
+                              <p className="text-lg font-semibold text-[#0d2f46]">{formatCurrency(plan.totalCost)}</p>
                             </div>
                           ))}
                         </div>
                         <div className="mt-4">
                           <Button color="primary" block loading={busyAction === "book"} onClick={createBooking}>
                             <CheckCircle />
-                            Create POC booking
+                            Reserve now
                           </Button>
                         </div>
                       </div>
                     ) : null}
 
                     {booking ? (
-                      <div className="mt-4 rounded-[24px] border border-[rgba(14,107,87,0.18)] bg-[rgba(216,236,232,0.52)] p-4">
+                      <div className="mt-4 rounded-[22px] border border-[rgba(14,107,87,0.18)] bg-[rgba(216,236,232,0.52)] p-4">
                         <div className="flex items-center gap-2">
                           <CheckCircle className="size-5 text-[var(--quest-brand)]" />
                           <p className="text-lg font-semibold">Booking confirmed</p>
@@ -723,30 +790,24 @@ export function App() {
                           Confirmation <strong>{booking.confirmationNumber}</strong> for {booking.guestName}.
                         </p>
                         <div className="mt-3 grid gap-2 text-sm text-[var(--quest-muted)]">
-                          <p>
-                            {booking.roomType} at {booking.propertyName}
-                          </p>
-                          <p>
-                            {booking.checkIn} to {booking.checkOut} · {booking.ratePlan}
-                          </p>
-                          <p>
-                            {formatCurrency(booking.totalCost)} · {booking.guestEmail}
-                          </p>
+                          <p>{booking.roomType} at {booking.propertyName}</p>
+                          <p>{booking.checkIn} to {booking.checkOut} · {booking.ratePlan}</p>
+                          <p>{formatCurrency(booking.totalCost)} · {booking.guestEmail}</p>
                         </div>
                       </div>
                     ) : null}
-                  </div>
-                </div>
+                  </section>
+                </>
               ) : (
-                <div className="rounded-[26px] border border-dashed border-[rgba(16,34,51,0.12)] bg-white/70 px-6 py-16 text-center">
-                  <p className="text-xl font-semibold">Search for a Quest property to begin</p>
+                <section className="rounded-[26px] border border-dashed border-[rgba(16,34,51,0.12)] bg-white px-6 py-16 text-center shadow-[0_12px_34px_rgba(16,34,51,0.05)]">
+                  <p className="text-2xl font-semibold tracking-[-0.04em]">Search results will render here as hotel cards</p>
                   <p className="mx-auto mt-2 max-w-xl text-[15px] leading-7 text-[var(--quest-muted)]">
-                    Once a search tool returns structured results, this view becomes a premium property card with a minimal quote and booking flow.
+                    The target layout is now inventory-first: image-driven cards on the left, selected stay and booking panel on the right.
                   </p>
-                </div>
+                </section>
               )}
-            </section>
-          </main>
+            </aside>
+          </div>
         </section>
       </div>
     </div>
