@@ -4,7 +4,7 @@
   "description": "Quest Apartment Hotels MCP Server — Australia POC",
   "type": "module",
   "scripts": {
-    "build": "npm run build:widget",
+    "build": "npm run typecheck && npm run build:widget",
     "build:widget": "node scripts/build-widget.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json",
     "dev": "vercel dev"
