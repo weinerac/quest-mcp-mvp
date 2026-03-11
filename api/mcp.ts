@@ -623,7 +623,8 @@ Examples:
   );
 
   // ── Tool 2: quest_get_property_details ───────────────────
-  server.registerTool(
+  registerAppTool(
+    server,
     "quest_get_property_details",
     {
       title: "Get Quest Property Details",
@@ -636,11 +637,19 @@ Args:
   - response_format: "markdown" (default) or "json"
 
 Returns full description, room types, amenities, coordinates, check-in/out times, and website link.`,
-      inputSchema: z.object({
+      inputSchema: {
         property_id: z.string().describe('Property ID, e.g. "quest-docklands". Use quest_search_properties to find IDs.'),
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
-      }),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        ui: {
+          resourceUri: SEARCH_RESULTS_WIDGET_URI,
+        },
+        "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Loading Quest property",
+        "openai/toolInvocation/invoked": "Quest property ready",
+      },
     },
     async (params) => {
       const p = PROPERTIES.find(x => x.id === params.property_id);
@@ -838,9 +847,9 @@ Rate plans:
     "quest_search_availability",
     {
       title: "Search Quest Availability",
-      description: `Find available Quest properties matching location, dates, room type, and budget. This is the PRIMARY discovery tool.
+      description: `Find available Quest properties matching location, dates, room type, and budget. This is the booking-ready search tool when the guest already has stay dates in mind.
 
-Use when a guest describes what they need — location, dates, room size, and/or budget — and you need to find matching options.
+Use when a guest describes what they need — location, dates, room size, and/or budget — and you need to find matching options that can move straight into booking.
 
 Args:
   - location: City, suburb, or state (e.g. "Melbourne", "Brisbane", "QLD")
