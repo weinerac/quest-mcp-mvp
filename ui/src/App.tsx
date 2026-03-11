@@ -384,9 +384,45 @@ export function App() {
       });
 
       if (result.structuredContent) {
-        setBooking(result.structuredContent as BookingPayload);
+        const confirmedBooking = result.structuredContent as BookingPayload;
+        setBooking(confirmedBooking);
         setScreen("confirmed");
         setStatus("Booking confirmed.");
+
+        try {
+          await app.updateModelContext({
+            structuredContent: {
+              booking_confirmation: confirmedBooking,
+              selected_property: {
+                id: selectedProperty.id,
+                name: selectedProperty.name,
+                address: selectedProperty.address,
+              },
+            },
+          });
+
+          await app.sendMessage({
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  `I confirmed this booking in the Quest app. ` +
+                  `Please present the booking confirmation in chat using these details: ` +
+                  `${confirmedBooking.confirmationNumber} for ${confirmedBooking.propertyName}, ` +
+                  `${confirmedBooking.checkIn} to ${confirmedBooking.checkOut}, ` +
+                  `${confirmedBooking.roomType}, ${confirmedBooking.guests} guest${confirmedBooking.guests === 1 ? "" : "s"}, ` +
+                  `${formatCurrency(confirmedBooking.totalCost)}, booked for ${confirmedBooking.guestName} (${confirmedBooking.guestEmail}).`,
+              },
+            ],
+          });
+        } catch (messageError) {
+          setStatus(
+            messageError instanceof Error
+              ? `Booking confirmed, but chat sync failed: ${messageError.message}`
+              : "Booking confirmed, but chat sync failed."
+          );
+        }
       }
     } catch (requestError) {
       setStatus(requestError instanceof Error ? requestError.message : "Unable to complete booking.");
