@@ -85,6 +85,8 @@ type SearchResultPayload = {
   results?: AvailabilityResult[];
 };
 
+type ResultKind = "discovery" | "availability" | "empty";
+
 type QuotePlan = {
   planCode: string;
   planName: string;
@@ -181,6 +183,7 @@ export function App() {
   const [status, setStatus] = useState("Waiting for tool output.");
   const [quote, setQuote] = useState<QuotePayload | null>(null);
   const [busyAction, setBusyAction] = useState<"" | "quote" | "details">("");
+  const [showAllResults, setShowAllResults] = useState(false);
   const [form, setForm] = useState({
     checkIn: nextDate(7),
     checkOut: nextDate(10),
@@ -205,8 +208,9 @@ export function App() {
         startTransition(() => {
           setLastResult(payload);
           setProperties(normalized);
-          setSelectedId((current) => current || normalized[0]?.id || "");
+          setSelectedId(normalized[0]?.id || "");
           setQuote(null);
+          setShowAllResults(false);
           setStatus(
             normalized.length > 0
               ? `Showing ${payload?.total ?? normalized.length} result${normalized.length === 1 ? "" : "s"}.`
@@ -308,6 +312,11 @@ export function App() {
   }
 
   const totalResults = lastResult?.total ?? properties.length;
+  const resultKind: ResultKind = Array.isArray(lastResult?.results)
+    ? "availability"
+    : Array.isArray(lastResult?.properties)
+      ? "discovery"
+      : "empty";
   const destinationLabel = getDestinationLabel(lastInput);
   const stayLabel = getStayLabel(lastInput, form.checkIn, form.checkOut);
   const filters = [
@@ -321,6 +330,10 @@ export function App() {
     lastInput?.has_pool ? "Pool" : null,
   ].filter(Boolean) as string[];
   const hasSummaryContext = Boolean(destinationLabel || lastInput?.check_in || lastInput?.check_out || filters.length > 0);
+  const hasStayContext = Boolean(lastInput?.check_in || lastInput?.check_out);
+  const canQuote = resultKind === "availability" && hasStayContext;
+  const visibleResultCount = resultKind === "discovery" ? 6 : 8;
+  const visibleProperties = showAllResults ? properties : properties.slice(0, visibleResultCount);
 
   if (error) {
     return (
@@ -382,7 +395,7 @@ export function App() {
                 Use <strong>quest_search_properties</strong> or <strong>quest_search_availability</strong> to render results here.
               </div>
             ) : (
-              properties.map((property) => {
+              visibleProperties.map((property) => {
                 const active = property.id === selectedProperty?.id;
                 const priceLabel = property.bestRate
                   ? `${formatCurrency(property.bestRate.nightlyRate)}/night`
@@ -428,6 +441,18 @@ export function App() {
                 );
               })
             )}
+
+            {properties.length > visibleResultCount ? (
+              <div className="md:col-span-2">
+                <Button
+                  color="secondary"
+                  variant="soft"
+                  onClick={() => setShowAllResults((current) => !current)}
+                >
+                  {showAllResults ? "Show fewer" : `Show all ${properties.length} results`}
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <aside className="grid gap-4">
@@ -453,16 +478,20 @@ export function App() {
                       <Maps className="mt-0.5 size-4 text-secondary" />
                       <span>{selectedPropertyWithDetails.city ?? destinationLabel}</span>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <Calendar className="mt-0.5 size-4 text-secondary" />
-                      <span>{stayLabel}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <Clock className="mt-0.5 size-4 text-secondary" />
-                      <span>
-                        Check-in {selectedPropertyWithDetails.checkInTime ?? "14:00"} / Check-out {selectedPropertyWithDetails.checkOutTime ?? "10:00"}
-                      </span>
-                    </div>
+                    {hasStayContext ? (
+                      <div className="flex items-start gap-2">
+                        <Calendar className="mt-0.5 size-4 text-secondary" />
+                        <span>{stayLabel}</span>
+                      </div>
+                    ) : null}
+                    {hasStayContext ? (
+                      <div className="flex items-start gap-2">
+                        <Clock className="mt-0.5 size-4 text-secondary" />
+                        <span>
+                          Check-in {selectedPropertyWithDetails.checkInTime ?? "14:00"} / Check-out {selectedPropertyWithDetails.checkOutTime ?? "10:00"}
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -479,7 +508,7 @@ export function App() {
               )}
             </section>
 
-            {selectedPropertyWithDetails ? (
+            {selectedPropertyWithDetails && canQuote ? (
               <section className="rounded-2xl border border-default bg-surface p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="heading-sm">Quote</h3>
@@ -534,6 +563,26 @@ export function App() {
                     <p className="mt-3 text-sm text-secondary">{quote.quote[0].cancellationPolicy}</p>
                   </div>
                 ) : null}
+              </section>
+            ) : null}
+
+            {selectedPropertyWithDetails && !canQuote ? (
+              <section className="rounded-2xl border border-default bg-surface p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="heading-sm">Next step</h3>
+                  <Badge color="secondary" variant="soft" pill>
+                    Discovery
+                  </Badge>
+                </div>
+                <p className="mt-3 text-sm text-secondary">
+                  This result is a property discovery view. Quote and booking controls appear only after an availability search with dates.
+                </p>
+                <div className="mt-4">
+                  <Button color="secondary" variant="soft" onClick={askChatGPT}>
+                    <Sparkles />
+                    Ask ChatGPT to narrow this list
+                  </Button>
+                </div>
               </section>
             ) : null}
           </aside>
