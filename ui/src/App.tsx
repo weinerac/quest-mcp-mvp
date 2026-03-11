@@ -213,6 +213,29 @@ function getHeaderCopy(kind: ResultKind, total: number) {
   return { eyebrow: "Quest booking", title: "Search to begin" };
 }
 
+function buildDraftSummary(property: NormalizedProperty | null, form: {
+  checkIn: string;
+  checkOut: string;
+  guests: string;
+  roomType: RoomType["type"];
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+}, quote: QuotePayload | null) {
+  if (!property) return "";
+  const quoteText = quote?.quote?.[0]
+    ? ` Current quote: ${formatCurrency(quote.quote[0].totalCost)} on ${quote.quote[0].planName}.`
+    : "";
+
+  return (
+    `Selected property: ${property.name}, ${property.address}. ` +
+    `Stay: ${form.checkIn} to ${form.checkOut}. ` +
+    `Room: ${form.roomType}. Guests: ${form.guests}. ` +
+    `Guest: ${form.guestName || "not entered"} / ${form.guestEmail || "not entered"} / ${form.guestPhone || "not entered"}.` +
+    quoteText
+  );
+}
+
 export function App() {
   const [lastInput, setLastInput] = useState<SearchInput | null>(null);
   const [lastResult, setLastResult] = useState<SearchResultPayload | null>(null);
@@ -327,9 +350,63 @@ export function App() {
     setQuote(null);
   }, [selectedId, form.checkIn, form.checkOut, form.guests, form.roomType]);
 
+  useEffect(() => {
+    if (!app || !selectedProperty) return;
+
+    void app.updateModelContext({
+      content: [
+        {
+          type: "text",
+          text: buildDraftSummary(selectedProperty, form, activeQuote),
+        },
+      ],
+      structuredContent: {
+        booking_draft: {
+          propertyId: selectedProperty.id,
+          propertyName: selectedProperty.name,
+          address: selectedProperty.address,
+          checkIn: form.checkIn,
+          checkOut: form.checkOut,
+          guests: Number(form.guests),
+          roomType: form.roomType,
+          guestName: form.guestName,
+          guestEmail: form.guestEmail,
+          guestPhone: form.guestPhone,
+          quote: activeQuote?.quote?.[0] ?? null,
+        },
+      },
+    }).catch(() => undefined);
+  }, [
+    app,
+    selectedProperty,
+    form.checkIn,
+    form.checkOut,
+    form.guests,
+    form.roomType,
+    form.guestName,
+    form.guestEmail,
+    form.guestPhone,
+    activeQuote,
+  ]);
+
   function startCheckout(propertyId: string) {
+    const nextProperty = properties.find((property) => property.id === propertyId) ?? null;
     setSelectedId(propertyId);
     setScreen("checkout");
+
+    if (!app || !nextProperty) return;
+
+    void app.sendMessage({
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text:
+            `I selected ${nextProperty.name} in the Quest app and want to book it. ` +
+            `Use the booking details from the app as I fill them in and continue the booking flow with me in chat.`,
+        },
+      ],
+    }).catch(() => undefined);
   }
 
   async function requestQuote() {
@@ -401,7 +478,7 @@ export function App() {
             },
           });
 
-          await app.sendMessage({
+          const syncResult = await app.sendMessage({
             role: "user",
             content: [
               {
@@ -416,6 +493,10 @@ export function App() {
               },
             ],
           });
+
+          if (syncResult.isError) {
+            setStatus("Booking confirmed, but ChatGPT rejected the confirmation handoff.");
+          }
         } catch (messageError) {
           setStatus(
             messageError instanceof Error
