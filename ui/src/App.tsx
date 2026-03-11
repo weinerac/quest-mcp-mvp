@@ -83,9 +83,11 @@ type SearchResultPayload = {
   total?: number;
   properties?: SearchProperty[];
   results?: AvailabilityResult[];
+  recommendations?: RecommendationResult[];
+  summary?: string;
 };
 
-type ResultKind = "discovery" | "availability" | "empty";
+type ResultKind = "recommendations" | "discovery" | "availability" | "empty";
 
 type QuotePlan = {
   planCode: string;
@@ -103,10 +105,17 @@ type QuotePayload = {
   quote: QuotePlan[];
 };
 
+type RecommendationResult = SearchProperty & {
+  rank: number;
+  reasons: string[];
+};
+
 type NormalizedProperty = SearchProperty & {
   bestRate?: AvailabilityResult["bestRate"];
   roomsLeft?: number;
   suggestedRoomType?: RoomType["type"];
+  rank?: number;
+  reasons?: string[];
 };
 
 const DEFAULT_ROOM_TYPE: RoomType["type"] = "Studio";
@@ -140,6 +149,7 @@ function amenityTags(property: SearchProperty) {
 
 function normalizeProperties(payload: SearchResultPayload | null): NormalizedProperty[] {
   if (!payload) return [];
+  if (Array.isArray(payload.recommendations)) return payload.recommendations;
   if (Array.isArray(payload.properties)) return payload.properties;
   if (!Array.isArray(payload.results)) return [];
 
@@ -314,6 +324,8 @@ export function App() {
   const totalResults = lastResult?.total ?? properties.length;
   const resultKind: ResultKind = Array.isArray(lastResult?.results)
     ? "availability"
+    : Array.isArray(lastResult?.recommendations)
+      ? "recommendations"
     : Array.isArray(lastResult?.properties)
       ? "discovery"
       : "empty";
@@ -332,7 +344,7 @@ export function App() {
   const hasSummaryContext = Boolean(destinationLabel || lastInput?.check_in || lastInput?.check_out || filters.length > 0);
   const hasStayContext = Boolean(lastInput?.check_in || lastInput?.check_out);
   const canQuote = resultKind === "availability" && hasStayContext;
-  const visibleResultCount = resultKind === "discovery" ? 6 : 8;
+  const visibleResultCount = resultKind === "recommendations" ? 5 : resultKind === "discovery" ? 6 : 8;
   const visibleProperties = showAllResults ? properties : properties.slice(0, visibleResultCount);
 
   if (error) {
@@ -413,6 +425,11 @@ export function App() {
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="heading-sm">{property.name}</h2>
+                        {typeof property.rank === "number" ? (
+                          <Badge color="info" variant="soft" pill>
+                            #{property.rank}
+                          </Badge>
+                        ) : null}
                         {property.roomsLeft ? (
                           <Badge color="success" variant="soft" pill>
                             {property.roomsLeft} left
@@ -423,6 +440,17 @@ export function App() {
                       <p className="text-sm text-primary">
                         {property.shortDescription ?? "Apartment-style Quest stay with flexible room options."}
                       </p>
+
+                      {property.reasons?.length ? (
+                        <div className="rounded-xl border border-default bg-surface-secondary p-3">
+                          <p className="text-xs font-medium text-secondary">Why this was recommended</p>
+                          <ul className="mt-2 grid gap-1 text-sm text-primary">
+                            {property.reasons.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
 
                       <div className="w-fit rounded-xl border border-default bg-surface-secondary px-3 py-2">
                         <p className="text-xs text-secondary">From</p>
@@ -502,6 +530,17 @@ export function App() {
                       </Badge>
                     ))}
                   </div>
+
+                  {selectedPropertyWithDetails.reasons?.length ? (
+                    <div className="mt-4 rounded-xl border border-default bg-surface-secondary p-3">
+                      <p className="text-xs font-medium text-secondary">Recommendation reasons</p>
+                      <ul className="mt-2 grid gap-1 text-sm text-primary">
+                        {selectedPropertyWithDetails.reasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <div className="text-sm text-secondary">Select a property from the results list.</div>

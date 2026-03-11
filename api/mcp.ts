@@ -4,6 +4,7 @@
  * Compatible with OpenAI ChatGPT MCP testing and Claude Desktop
  *
  * Tools (Phase 1):
+ *   quest_recommend_properties  — curated shortlist for guest-facing discovery
  *   quest_search_properties     — find properties by location/amenities
  *   quest_get_property_details  — full details for one property
  *   quest_check_availability    — availability at a specific property for given dates
@@ -310,6 +311,69 @@ function findProperties(opts: {
   return results;
 }
 
+function scorePropertyForRecommendation(
+  property: Property,
+  opts: {
+    location?: string;
+    state?: string;
+    hasGym?: boolean;
+    hasPool?: boolean;
+    hasParking?: boolean;
+    hasConferenceRoom?: boolean;
+  }
+): number {
+  let score = property.starRating * 10;
+  const location = opts.location?.toLowerCase().trim();
+
+  if (location) {
+    if (property.suburb.toLowerCase() === location) score += 40;
+    if (property.city.toLowerCase() === location) score += 24;
+    if (property.name.toLowerCase().includes(location)) score += 18;
+    if (property.suburb.toLowerCase().includes(location)) score += 14;
+    if (property.city.toLowerCase().includes(location)) score += 12;
+    if (property.state.toLowerCase() === location) score += 8;
+  }
+
+  if (opts.state && property.state.toUpperCase() === opts.state.toUpperCase()) score += 8;
+  if (opts.hasGym && property.hasGym) score += 8;
+  if (opts.hasPool && property.hasPool) score += 8;
+  if (opts.hasParking && property.hasParking) score += 6;
+  if (opts.hasConferenceRoom && property.hasConferenceRoom) score += 6;
+
+  return score;
+}
+
+function buildRecommendationReasons(
+  property: Property,
+  opts: {
+    location?: string;
+    state?: string;
+    hasGym?: boolean;
+    hasPool?: boolean;
+    hasParking?: boolean;
+    hasConferenceRoom?: boolean;
+  }
+): string[] {
+  const reasons: string[] = [];
+  const location = opts.location?.toLowerCase().trim();
+
+  if (location && property.suburb.toLowerCase() === location) reasons.push(`Direct match for ${property.suburb}`);
+  else if (location && property.city.toLowerCase() === location) reasons.push(`In ${property.city}`);
+  else if (location && property.suburb.toLowerCase().includes(location)) reasons.push(`Close suburb match for ${opts.location}`);
+
+  if (property.starRating >= 4) reasons.push(`${property.starRating}-star stay`);
+  if (opts.hasGym && property.hasGym) reasons.push("Includes a gym");
+  if (opts.hasPool && property.hasPool) reasons.push("Includes a pool");
+  if (opts.hasParking && property.hasParking) reasons.push("Has parking");
+  if (opts.hasConferenceRoom && property.hasConferenceRoom) reasons.push("Has conference facilities");
+
+  if (reasons.length < 3) {
+    reasons.push(property.shortDescription);
+  }
+
+  return reasons.slice(0, 3);
+}
+
 // ============================================================
 // MCP SERVER FACTORY
 // ============================================================
@@ -355,15 +419,126 @@ function createServer(): McpServer {
     })
   );
 
-  // ── Tool 1: quest_search_properties ──────────────────────
+  // ── Tool 1: quest_recommend_properties ───────────────────
   registerAppTool(
     server,
+    "quest_recommend_properties",
+    {
+      title: "Recommend Quest Properties",
+      description: `Return a curated shortlist of the best Quest properties for the guest's request. This is the PRIMARY guest-facing discovery tool.
+
+Use when the guest asks for recommendations, nearby options, or the best Quest properties for a location and amenities.
+
+Args:
+  - location: City, suburb, landmark, or state name
+  - state: State abbreviation — NSW, VIC, QLD, WA, SA, ACT, NT
+  - has_gym / has_pool / has_parking / has_conference_room: optional facility filters
+  - max_results: shortlist size, default 5, max 5
+  - response_format: "markdown" (default) or "json"
+
+Returns a ranked shortlist with reasons for each recommendation.`,
+      inputSchema: {
+        location: z.string().optional().describe("City, suburb, landmark, or state name"),
+        state: z.string().optional().describe("State abbreviation: NSW, VIC, QLD, WA, SA, ACT, NT"),
+        has_gym: z.boolean().optional().describe("Prefer properties with a gym"),
+        has_pool: z.boolean().optional().describe("Prefer properties with a pool"),
+        has_parking: z.boolean().optional().describe("Prefer properties with parking"),
+        has_conference_room: z.boolean().optional().describe("Prefer properties with conference facilities"),
+        max_results: z.number().int().min(1).max(5).default(5).describe("Maximum recommendations to return"),
+        response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        ui: {
+          resourceUri: SEARCH_RESULTS_WIDGET_URI,
+        },
+        "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
+        "openai/toolInvocation/invoking": "Curating Quest recommendations",
+        "openai/toolInvocation/invoked": "Quest recommendations ready",
+      },
+    },
+    async (params) => {
+      const ranked = findProperties({
+        location: params.location,
+        state: params.state,
+        hasGym: params.has_gym,
+        hasPool: params.has_pool,
+        hasParking: params.has_parking,
+        hasConferenceRoom: params.has_conference_room,
+      })
+        .map((property) => ({
+          property,
+          score: scorePropertyForRecommendation(property, {
+            location: params.location,
+            state: params.state,
+            hasGym: params.has_gym,
+            hasPool: params.has_pool,
+            hasParking: params.has_parking,
+            hasConferenceRoom: params.has_conference_room,
+          }),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, params.max_results);
+
+      if (ranked.length === 0) {
+        return { content: [{ type: "text", text: "No Quest recommendations matched those criteria. Try a broader area or fewer facility constraints." }] };
+      }
+
+      const output = {
+        total: ranked.length,
+        summary: `Top ${ranked.length} Quest recommendation${ranked.length === 1 ? "" : "s"} for this request`,
+        recommendations: ranked.map(({ property }, index) => ({
+          rank: index + 1,
+          id: property.id,
+          name: property.name,
+          address: `${property.address}, ${property.suburb} ${property.state} ${property.postcode}`,
+          city: property.city,
+          state: property.state,
+          starRating: property.starRating,
+          shortDescription: property.shortDescription,
+          amenities: property.amenities,
+          roomTypes: property.roomTypes.map((room) => ({ type: room.type, fromRate: `AUD $${room.baseRate}/night` })),
+          hasGym: property.hasGym,
+          hasPool: property.hasPool,
+          hasParking: property.hasParking,
+          hasConferenceRoom: property.hasConferenceRoom,
+          reasons: buildRecommendationReasons(property, {
+            location: params.location,
+            state: params.state,
+            hasGym: params.has_gym,
+            hasPool: params.has_pool,
+            hasParking: params.has_parking,
+            hasConferenceRoom: params.has_conference_room,
+          }),
+        })),
+      };
+
+      if (params.response_format === "json") {
+        return { content: [{ type: "text", text: JSON.stringify(output, null, 2) }], structuredContent: output };
+      }
+
+      const lines = [`# Quest Recommendations`, ""];
+      for (const recommendation of output.recommendations) {
+        lines.push(`## ${recommendation.rank}. ${recommendation.name}`);
+        lines.push(`${recommendation.address}`);
+        lines.push(`Reasons: ${recommendation.reasons.join(" · ")}`);
+        lines.push(`Room types: ${recommendation.roomTypes.map((room) => `${room.type} from ${room.fromRate}`).join(" | ")}`);
+        lines.push(`Property ID: \`${recommendation.id}\``);
+        lines.push("");
+      }
+
+      return { content: [{ type: "text", text: lines.join("\n") }], structuredContent: output };
+    }
+  );
+
+  // ── Tool 2: quest_search_properties ──────────────────────
+  server.registerTool(
     "quest_search_properties",
     {
       title: "Search Quest Properties",
-      description: `Search for Quest Apartment Hotels in Australia by location, state, or amenities.
+      description: `Search for Quest Apartment Hotels in Australia by location, state, or amenities. This is the raw search tool.
 
-Use when a guest asks to find Quest properties in a city, state, or with specific facilities.
+Use when you need the full uncurated result set. For guest-facing recommendations, prefer quest_recommend_properties.
 
 Args:
   - location: City, suburb, or state name (e.g. "Melbourne", "Chatswood", "Victoria", "NSW")
@@ -390,14 +565,6 @@ Examples:
         response_format: z.enum(["markdown", "json"]).default("markdown").describe("Output format"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      _meta: {
-        ui: {
-          resourceUri: SEARCH_RESULTS_WIDGET_URI,
-        },
-        "openai/outputTemplate": SEARCH_RESULTS_WIDGET_URI,
-        "openai/toolInvocation/invoking": "Searching Quest properties",
-        "openai/toolInvocation/invoked": "Quest properties ready",
-      },
     },
     async (params) => {
       const results = findProperties({
